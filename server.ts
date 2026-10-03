@@ -27,6 +27,21 @@ const VERSION = '0.5.0';
 // Raw body capture for suggestion validation & byte size limits
 app.use(express.json({ limit: '12kb' }));
 
+// Custom middleware to catch malformed JSON and return standard errors (JSON-RPC for MCP)
+app.use((err: unknown, req: Request, res: Response, next: (err?: unknown) => void) => {
+  if (err instanceof SyntaxError && 'body' in err) {
+    if (req.path === '/mcp' || req.path === '/api/mcp') {
+      return res.status(200).json({
+        jsonrpc: '2.0',
+        id: null,
+        error: { code: -32700, message: 'Parse error' },
+      });
+    }
+    return res.status(400).json({ error: 'Ungültiges JSON-Format' });
+  }
+  next(err);
+});
+
 // SQLite database initialization for durable community suggestions
 const dbDir = path.resolve(__dirname, 'data');
 if (!fs.existsSync(dbDir)) {
@@ -170,8 +185,38 @@ app.post('/api/suggestions', (req: Request, res: Response) => {
   }
 });
 
+// /api/info (Platform & Model Diagnostics Metadata)
+app.get('/api/info', (req: Request, res: Response) => {
+  res.json({
+    name: 'pea-kinetics-evidence',
+    version: VERSION,
+    status: 'hypothetical_unvalidated_models',
+    calibrated: false,
+    runtime: 'Node.js / Express on Google Cloud Run',
+    database: 'SQLite (data/suggestions.db)',
+    models: {
+      m1: 'Analytic parallel cascade S -> P -> D & S -> B',
+      m2: 'Adaptive step-doubling RK4 with surface deactivation, transport and one-sided Jacobi SVD',
+      m3: 'Independent metal capacity balance (foil vs shrinking body)',
+      arrhenius: 'Hypothetical rate acceleration factor k(T)/k(20°C); uncalibrated, no thermal stability assessment',
+    },
+    endpoints: {
+      readme: '/readme.md',
+      info: '/api/info',
+      project: '/api/project',
+      openapi: '/api/openapi.json',
+      mcp: '/api/mcp',
+      suggestions: '/api/suggestions',
+      source_zip: '/pea-kinetics-source.zip',
+      provenance: '/provenance.json',
+      matrix: '/matrix.csv',
+      report: '/bericht.md',
+    },
+  });
+});
+
 // /api/project JSON manifest
-app.get('/api/project', (req: Request, res: Response) => {
+app.get(['/api/project', '/project.json'], (req: Request, res: Response) => {
   const projectFile = path.resolve(__dirname, 'project.json');
   if (fs.existsSync(projectFile)) {
     return res.sendFile(projectFile);
@@ -180,39 +225,43 @@ app.get('/api/project', (req: Request, res: Response) => {
     version: VERSION,
     calibrated: false,
     read: '/readme.md',
-    api: '/openapi.json',
-    mcp: '/mcp',
+    api: '/api/openapi.json',
+    mcp: '/api/mcp',
     suggestions: '/api/suggestions',
     provenance: '/provenance.json',
   });
 });
 
 // Direct static file serving for Markdown, CSV, JSON and Source Bundle
-app.get(['/readme.md', '/README.md'], (req: Request, res: Response) => {
+app.get(['/readme.md', '/README.md', '/api/readme.md', '/api/README.md'], (req: Request, res: Response) => {
   const readPath = path.resolve(__dirname, 'README.md');
   res.type('text/markdown; charset=utf-8').sendFile(readPath);
 });
 
-app.get('/openapi.json', (req: Request, res: Response) => {
+app.get(['/openapi.json', '/api/openapi.json'], (req: Request, res: Response) => {
   res.sendFile(path.resolve(__dirname, 'public/openapi.json'));
 });
 
-app.get('/provenance.json', (req: Request, res: Response) => {
+app.get(['/provenance.json', '/api/provenance.json'], (req: Request, res: Response) => {
   res.sendFile(path.resolve(__dirname, 'public/provenance.json'));
 });
 
-app.get('/bericht.md', (req: Request, res: Response) => {
+app.get(['/bericht.md', '/api/bericht.md'], (req: Request, res: Response) => {
   res.type('text/markdown; charset=utf-8').sendFile(path.resolve(__dirname, 'public/bericht.md'));
 });
 
-app.get('/matrix.csv', (req: Request, res: Response) => {
+app.get(['/matrix.csv', '/api/matrix.csv'], (req: Request, res: Response) => {
   res.type('text/csv; charset=utf-8').sendFile(path.resolve(__dirname, 'public/matrix.csv'));
 });
 
-app.get('/pea-kinetics-source.zip', (req: Request, res: Response) => {
-  const zipPath = path.resolve(__dirname, 'dist/pea-kinetics-source.zip');
-  if (fs.existsSync(zipPath)) {
-    return res.download(zipPath, 'pea-kinetics-source.zip');
+app.get(['/pea-kinetics-source.zip', '/api/pea-kinetics-source.zip'], (req: Request, res: Response) => {
+  const distZip = path.resolve(__dirname, 'dist/pea-kinetics-source.zip');
+  if (fs.existsSync(distZip)) {
+    return res.download(distZip, 'pea-kinetics-source.zip');
+  }
+  const publicZip = path.resolve(__dirname, 'public/pea-kinetics-source.zip');
+  if (fs.existsSync(publicZip)) {
+    return res.download(publicZip, 'pea-kinetics-source.zip');
   }
   res.status(404).json({ error: 'Source archive not yet built' });
 });
@@ -238,7 +287,15 @@ const MCP_TOOLS = [
     inputSchema: {
       type: 'object',
       properties: Object.fromEntries(
-        Object.entries(m2Parameters).map(([k, v]) => [k, { type: 'number', minimum: (v as { min: number }).min, maximum: (v as { max: number }).max, default: (v as { value: number }).value }])
+        Object.entries(m2Parameters).map(([k, v]) => [
+          k,
+          {
+            type: 'number',
+            minimum: (v as { min: number }).min,
+            maximum: (v as { max: number }).max,
+            default: (v as { value: number }).value,
+          },
+        ])
       ),
       additionalProperties: false,
     },
@@ -260,10 +317,27 @@ const MCP_TOOLS = [
     },
     annotations: { readOnlyHint: true },
   },
+  {
+    name: 'pea_arrhenius',
+    description: 'Hypothetical Arrhenius rate acceleration k(T)/k(20°C); uncalibrated, no thermal stability or runaway prediction.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        Ea_kJ: { type: 'number', minimum: 10, maximum: 200, default: 55 },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true },
+  },
 ];
 
 // MCP Handler matching JSON-RPC 2.0 specs
 function handleMcpRequest(req: Request, res: Response) {
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    res.setHeader('Allow', 'GET, POST');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   if (req.method === 'GET') {
     return res.json({
       endpoint: '/mcp',
@@ -274,12 +348,12 @@ function handleMcpRequest(req: Request, res: Response) {
     });
   }
 
-  const { jsonrpc, id, method, params } = req.body;
+  const { jsonrpc, id, method, params } = req.body || {};
   if (jsonrpc !== '2.0' || typeof method !== 'string') {
     return res.json({ jsonrpc: '2.0', id: id ?? null, error: { code: -32600, message: 'Invalid request' } });
   }
 
-  if (method.startsWith('notifications/')) {
+  if (method === 'notifications/initialized' || method.startsWith('notifications/')) {
     return res.status(202).send();
   }
 
@@ -312,8 +386,17 @@ function handleMcpRequest(req: Request, res: Response) {
 
     try {
       const args = params?.arguments ?? {};
+      if (typeof args !== 'object' || Array.isArray(args)) {
+        throw new Error('Object arguments required');
+      }
       const validated: Record<string, unknown> = {};
       const schemaProps = (tool.inputSchema as { properties: Record<string, { type?: string; enum?: string[]; minimum?: number; maximum?: number; default?: unknown }> }).properties;
+
+      for (const k of Object.keys(args)) {
+        if (!(k in schemaProps)) {
+          throw new Error('Unknown parameter ' + k);
+        }
+      }
 
       for (const [k, v] of Object.entries(schemaProps)) {
         const val = args[k] ?? v.default;
@@ -343,7 +426,7 @@ function handleMcpRequest(req: Request, res: Response) {
           peak: m2RefinedPeak(rows, inputParams),
           trajectory: rows,
         };
-      } else {
+      } else if (tool.name === 'pea_simulate_m3') {
         const pM3 = {
           capacity: Number(validated.capacity),
           flux: Number(validated.flux),
@@ -357,6 +440,29 @@ function handleMcpRequest(req: Request, res: Response) {
           tau_metal: t,
           endpoint: m3MetalState(pM3, t),
         };
+      } else if (tool.name === 'pea_arrhenius') {
+        const Ea_kJ = Number(validated.Ea_kJ);
+        const R = 8.314462618;
+        const T_ref = 293.15;
+        const Ea_J = Ea_kJ * 1000;
+        const temps = [
+          { temp_c: 20, kelvin: 293.15 },
+          { temp_c: 50, kelvin: 323.15 },
+          { temp_c: 70, kelvin: 343.15 },
+          { temp_c: 90, kelvin: 363.15 },
+        ];
+        const factors = temps.map((t) => ({
+          temp_c: t.temp_c,
+          kelvin: t.kelvin,
+          rate_factor_vs_20c: Math.exp((-Ea_J / R) * (1 / t.kelvin - 1 / T_ref)),
+        }));
+        resultData = {
+          parameters: validated,
+          factors,
+          calibrated: false,
+          thermal_stability_assessed: false,
+          limits: 'Pure kinetic rate factors; does not assess thermal stability or runaway without heat release and heat removal balances.',
+        };
       }
 
       return res.json({
@@ -366,7 +472,7 @@ function handleMcpRequest(req: Request, res: Response) {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ calibrated: false, time_unit: 'dimensionless', ...resultData as object }),
+              text: JSON.stringify({ calibrated: false, time_unit: 'dimensionless', ...(resultData as object) }),
             },
           ],
         },
@@ -388,6 +494,11 @@ function handleMcpRequest(req: Request, res: Response) {
 
 app.all('/mcp', handleMcpRequest);
 app.all('/api/mcp', handleMcpRequest);
+
+// Explicit 404 Guard for any unmatched /api/* route - NEVER fall back to SPA index.html
+app.all('/api/*', (req: Request, res: Response) => {
+  res.status(404).json({ error: `API route ${req.method} ${req.path} not found` });
+});
 
 // Setup static file serving or Vite development middleware
 async function setupServer() {

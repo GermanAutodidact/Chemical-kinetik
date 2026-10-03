@@ -1,6 +1,6 @@
 # Architecture
 
-Client-side models plus a Cloudflare Worker and D1 for public suggestions. No remote model inference or user-account system. Model parameters live in page memory; reloading resets them. Downloads are created locally by the browser.
+Client-side models plus a Node.js / Express service on Google Cloud Run with durable SQLite storage for public community suggestions. No remote model inference or user-account system. Model parameters live in page memory; reloading resets them. Downloads are created locally by the browser.
 
 | Path | Responsibility |
 |---|---|
@@ -34,13 +34,13 @@ The public source export excludes `.git`, `.openai`, hosting IDs and deployment 
 `dist/metal.mjs` implements capacity depletion and implicit productive allocation; `dist/metal-ui.mjs` owns its controls, independent SVG and JSON download. `metal-section.html` is the authoring copy of the matching section in index.html. `tests-metal.mjs` tests its balances and analytic limits. Keep both section copies consistent.
 
 
-## v0.4 server and numerics
+## Server and numerics
 
-worker/handler.mjs validates requests, applies a bounded atomic insertion, serves suggestions from D1 and serves embedded static assets. db/schema.ts owns the schema; immutable generated migrations are in drizzle/. scripts/build.mjs embeds the public reading bundle and selected assets in dist/server/index.js. The manifest is deployment metadata, not a public source asset.
+`server.ts` runs an Express service on Google Cloud Run that serves the React SPA, static reading assets, OpenAPI specification, Model Context Protocol (MCP) JSON-RPC 2.0 endpoints (`/mcp` and `/api/mcp`), and handles community proposals stored in SQLite (`data/suggestions.db`). Drizzle is used for database migrations.
 
-POST /api/suggestions validates authorization flag, text sizes, request_id and declared version. Entries are persistent, public, timestamped by the server and marked proposed. Idempotency prevents duplicate entries for the same request_id. Names are unverified. A daily hash of the connecting IP is retained only in the private database for abuse control; raw IPs are not stored by this application. Three submissions per minute per hash are allowed. This is basic throttling, not a guarantee against distributed abuse. The read API paginates by server-generated sortable IDs. A storage failure returns 503 without discarding the browser draft. The UI renders user content only with textContent.
+`POST /api/suggestions` validates authorization flag, text sizes, request_id and declared version. Entries are persistent, public, timestamped by the server and marked proposed. Idempotency prevents duplicate entries for the same request_id. Names are unverified. A daily hash of the connecting IP is retained only in the private database for abuse control; raw IPs are not stored by this application. Three submissions per minute per hash are allowed. This is basic throttling, not a guarantee against distributed abuse. The read API paginates by server-generated sortable IDs. A storage failure returns 503 without discarding the browser draft. The UI renders user content safely.
 
-numerics.mjs implements adaptive step doubling, direct Jacobi SVD and bisection. fit.mjs/fit-ui.mjs implement local, bounded multi-start fitting and held-out residuals. tests-v4.mjs tests numerical cases and the actual generated SQLite schema behind a D1-compatible wrapper.
+`numerics.mjs` and `src/utils/kinetics.ts` implement adaptive step doubling, direct Jacobi SVD and bisection. `fit.mjs` and `src/utils/fit.ts` implement local, bounded multi-start fitting and held-out residuals. `tests-v4.mjs` tests numerical cases and the actual generated SQLite schema.
 
 ## Vitest test suite and M1 solver validation workflow
 

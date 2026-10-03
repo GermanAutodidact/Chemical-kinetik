@@ -36,54 +36,54 @@ export const SubstrateComparisonSection: React.FC = () => {
       {/* Comparison Table */}
       <div className="table-wrap mb-5">
         <table>
-          <caption>Gegenüberstellung chemischer und molekularer Kennzahlen</caption>
+          <caption>Gegenüberstellung chemischer Strukturmerkmale und mechanistischer Hypothesen</caption>
           <thead>
             <tr>
-              <th>Eigenschaft</th>
+              <th>Eigenschaft / Kategorie</th>
               <th>trans-β-Nitrostyrol</th>
               <th>(E)-1-Phenyl-2-nitropropen (P2NP)</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td><strong>IUPAC-Name</strong></td>
+              <td><strong>IUPAC-Name (Strukturmerkmal)</strong></td>
               <td>(E)-(2-Nitroethenyl)benzol</td>
               <td>(E)-(2-Nitroprop-1-en-1-yl)benzol</td>
             </tr>
             <tr>
-              <td><strong>CAS-Nummer</strong></td>
-              <td>102-96-5</td>
-              <td>705-60-2</td>
+              <td><strong>CAS-Nummer &amp; Summenformel</strong></td>
+              <td>102-96-5 · C₈H₇NO₂ (149,15 g/mol)</td>
+              <td>705-60-2 · C₉H₉NO₂ (163,17 g/mol)</td>
             </tr>
             <tr>
-              <td><strong>Summenformel &amp; Molmasse</strong></td>
-              <td>C₈H₇NO₂ (149,15 g/mol)</td>
-              <td>C₉H₉NO₂ (163,17 g/mol)</td>
-            </tr>
-            <tr>
-              <td><strong>Doppelbindungssubstitution</strong></td>
+              <td><strong>C=C Doppelbindungssubstitution</strong></td>
               <td>Unsubstituiert am β-Kohlenstoff (−CH=CH−NO₂)</td>
               <td>Methylsubstituiert am C2-Atom (−CH=C(CH₃)−NO₂)</td>
             </tr>
             <tr>
-              <td><strong>Primäres Reduktionsprodukt</strong></td>
+              <td><strong>Zielprodukt (formale 6 e⁻ Reduktion)</strong></td>
               <td>2-Phenylethylamin (PEA, 121,18 g/mol)</td>
               <td>1-Phenylpropan-2-amin (135,21 g/mol)</td>
             </tr>
             <tr>
-              <td><strong>Intermediäre Zwischenstufe</strong></td>
-              <td>Phenylacetaldoxim (Aldoxim)</td>
-              <td>1-Phenylpropan-2-on-oxim (Ketoxim)</td>
+              <td><strong>Postulierte Zwischenstufen (Hypothese)</strong></td>
+              <td>Aldoxim-Pool (Phenylacetaldoxim; nicht isoliert gemessen)</td>
+              <td>Ketoxim-Pool (Phenylaceton-oxim; nicht isoliert gemessen)</td>
             </tr>
             <tr>
-              <td><strong>Sterische &amp; elektronische Effekte</strong></td>
-              <td>Geringe sterische Abschirmung; weitgehend planare Konjugation mit dem Phenylring</td>
-              <td>Verdrillung des konjugierten π-Systems durch sterischen Raumanspruch der Methylgruppe; +I-Effekt</td>
+              <td><strong>Konformative Auswirkung der Substitution</strong></td>
+              <td>Geringe sterische Hinderung; planare Konjugation mit Phenylring</td>
+              <td>Sterischer Raumanspruch der Methylgruppe; Torsion der Doppelbindung</td>
             </tr>
             <tr>
-              <td><strong>Charakteristischer Nebenweg</strong></td>
-              <td>Substratverharzung / Oligomerisation bei Überhitzung</td>
-              <td>Säurekatalysierte Hydrolyse des Ketoxims zu Phenyl-2-propanon (P2P)</td>
+              <td><strong>Postulierte Nebenwege (unbestätigte Hypothesen)</strong></td>
+              <td>Mögliche Oligomerisation / Kondensation bei Erwärmung</td>
+              <td>Mögliche säurekatalysierte Oxim-Hydrolyse zu Phenyl-2-propanon (P2P)</td>
+            </tr>
+            <tr>
+              <td><strong>Gemessene kinetische Konstanten für Al/Hg</strong></td>
+              <td className="text-amber-300 font-mono text-[11px]">Keine geprüften Daten verfügbar</td>
+              <td className="text-amber-300 font-mono text-[11px]">Keine geprüften Daten verfügbar</td>
             </tr>
           </tbody>
         </table>
@@ -93,45 +93,45 @@ export const SubstrateComparisonSection: React.FC = () => {
       <div className="space-y-3 text-xs text-slate-300 leading-relaxed font-sans">
         <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-1.5 pt-2">
           <Layers className="w-4 h-4 text-sky-400" />
-          Warum kinetische Parameter nicht zwischen beiden Substraten übertragbar sind
+          Trennung von Strukturmerkmalen, mechanistischen Hypothesen und Messdaten
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="p-3 rounded-lg bg-slate-950/70 border border-slate-800">
-            <strong className="text-slate-200 block mb-1">1. Unterschiedliche Zwischenstufen-Kinetik (Aldoxim vs. Ketoxim)</strong>
+            <strong className="text-slate-200 block mb-1">1. Postulierte Zwischenstufen (Aldoxim vs. Ketoxim)</strong>
             <p className="text-slate-400">
-              Bei der Reduktion von β-Nitrostyrol entsteht intermediär ein <em>Aldoxim</em> (Phenylacetaldoxim). 
-              Bei 1-Phenyl-2-nitropropen entsteht durch die Methylgruppe ein <em>Ketoxim</em> (Phenylaceton-oxim). 
-              Ketoxime weisen eine signifikant höhere thermodynamische und kinetische Reduktionsresistenz auf als Aldoxime. 
-              Die Geschwindigkeitskonstante des zweiten Reduktionsschritts (vom Oxim zum Amin) ist daher bei Ketoximen deutlich kleiner, 
-              was zu einem ausgeprägten Zwischenstufenstau führen kann.
+              Die Annahme intermediärer Oximstufen stammt aus homogenen Modellreaktionen (z. B. Hydrierungen oder Borhydrid-Reduktionen). 
+              Für das heterogene, frei korrodierende Al/Hg-System in Essigsäure/Wasser liegen jedoch keine zeitaufgelösten 
+              Konzentrationsmessungen vor. Aussagen über eine pauschal „höhere Reduktionsresistenz“ oder „kleinere Geschwindigkeitskonstanten“ 
+              von Ketoximen sind unbestätigte Hypothesen und keine für dieses System nachgewiesenen Parameter.
             </p>
           </div>
 
           <div className="p-3 rounded-lg bg-slate-950/70 border border-slate-800">
-            <strong className="text-slate-200 block mb-1">2. Sterische Abschirmung und Adsorption</strong>
+            <strong className="text-slate-200 block mb-1">2. Sterische Effekte und Grenzflächenwechselwirkung</strong>
             <p className="text-slate-400">
-              Die heterogene Reduktion an amalgamierten Metalloberflächen erfordert die Adsorption des Nitroalkens an aktiven Zentren. 
-              Die zusätzliche Methylgruppe an P2NP behindert die flache planare Annäherung sterisch und verringert die Adsorptionsenthalpie. 
-              Effektive Transport- und Oberflächenkonstanten ($a_0, m$) verändern sich grundlegend.
+              Die zusätzliche Methylgruppe an P2NP stellt ein eindeutiges sterisches Strukturmerkmal dar. 
+              Daraus darf jedoch keine quantitative Aussage über eine „verringerte Adsorptionsenthalpie“ oder konkrete 
+              Oberflächenkonstanten ($a_0, m$) abgeleitet werden: Adsorptionsenthalpien und Transporthemmungen wurden für dieses 
+              Mehrphasengemisch experimentell nicht bestimmt.
             </p>
           </div>
 
           <div className="p-3 rounded-lg bg-slate-950/70 border border-slate-800">
-            <strong className="text-slate-200 block mb-1">3. Abweichende Hydrolyse- und Zersetzungswege</strong>
+            <strong className="text-slate-200 block mb-1">3. Hypothetische Konkurrenz- und Zersetzungswege</strong>
             <p className="text-slate-400">
-              In saurem wässrigem Essigsäuremedium hydrolysiert das Phenylaceton-Ketoxim bei unzureichendem Elektronennachschub leicht 
-              zum Keton (Phenyl-2-propanon). Beim unsubstituierten Aldoxim führt ein analoger Abbau primär zu Phenylacetaldehyd, 
-              der rasch zu Polymeren kondensiert. Die Verzweigungsverhältnisse $q$ und $r$ sind somit strukturell inkompatibel.
+              Mögliche Nebenreaktionen wie die Hydrolyse zu Phenylaceton oder Kondensationsreaktionen sind plausible mechanistische 
+              Vorschläge aus der Literatur. Quantitative Verzweigungsverhältnisse ($q$ und $r$) sind jedoch weder für β-Nitrostyrol 
+              noch für P2NP experimentell kalibriert. Die Modelle weisen abstrakten Gleichungen keine erfundenen substanzspezifischen Werte zu.
             </p>
           </div>
 
           <div className="p-3 rounded-lg bg-slate-950/70 border border-slate-800">
-            <strong className="text-slate-200 block mb-1">4. Fazit zur Übertragbarkeit</strong>
+            <strong className="text-slate-200 block mb-1">4. Methodisches Fazit: Rein deskriptiver Vergleich</strong>
             <p className="text-slate-400">
-              Jedes reaktionskinetische Modell muss für das jeweilige Substrat und das konkrete Mehrphasensystem separat 
-              durch experimentelle Messreihen (spektroskopische Konzentrations-Zeit-Profile) kalibriert werden. 
-              Eine Übernahme numerischer Ratenkonstanten oder Aktivierungsenergien zwischen beiden Systemen ist physikochemisch unbegründet.
+              Dieser Vergleich bleibt strikt deskriptiv. Kinetische Konstanten dürfen nicht zwischen verschiedenen Substraten 
+              übertragen werden. Die Plattform liefert keine stoffbezogenen Synthese- oder Dosierungsanleitungen, keine 
+              Reaktionsdauerberechnungen und keine Prozessoptimierung zur Amphetaminherstellung.
             </p>
           </div>
         </div>

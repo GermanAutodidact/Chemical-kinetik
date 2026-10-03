@@ -250,24 +250,24 @@ export const ChemicalReactionViewer: React.FC<ChemicalReactionViewerProps> = ({
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-slate-300 text-xs">
           <div className="p-2.5 rounded bg-slate-900/80 border border-slate-800">
-            <strong className="text-amber-300 block mb-1">Wasserstoffentwicklung (W)</strong>
-            <span className="font-mono text-sky-300 text-[11px]">2 H⁺ + 2 e⁻ → H₂ ↑</span>
+            <strong className="text-amber-300 block mb-1">Unproduktiver Nebenverbrauch (W)</strong>
+            <span className="font-mono text-sky-300 text-[11px]">Sammelpool: H₂-Bildung, Korrosion &amp; Nebenreaktionen</span>
             <p className="mt-1 text-slate-400">
-              Parasitärer Metallabtrag durch Hydrolyse mit Wasser/Essigsäure ohne organischen Substratumsatz.
+              Unproduktiver Metallabtrag durch Protonenreduktion, Passivierung oder Solvenskorrosion. Nicht vollständig als reiner molekularer Wasserstoff belegt.
             </p>
           </div>
 
           <div className="p-2.5 rounded bg-slate-900/80 border border-slate-800">
             <strong className="text-amber-300 block mb-1">
-              {isP2NP ? 'Oxim-Hydrolyse zu Phenylaceton (P2P)' : 'Substrat-Polymerisation (B)'}
+              {isP2NP ? 'Postulierte Oxim-Hydrolyse (Hypothese)' : 'Postulierte Substrat-Polymerisation (Hypothese)'}
             </strong>
             <span className="font-mono text-amber-300 text-[11px]">
               {isP2NP ? 'Oxim + H₂O → Phenyl-2-propanon' : 'n S → Polymere / Harze'}
             </span>
             <p className="mt-1 text-slate-400">
               {isP2NP
-                ? 'Im wässrig-sauren Milieu kann das Ketoxim hydrolysieren und Ketonnebenprodukte bilden.'
-                : 'Aktivierte Nitroalkene neigen bei schlechter Durchmischung oder Überhitzung zu irreversibler Verharzung.'}
+                ? 'Im wässrig-sauren Milieu wird eine Ketoxim-Hydrolyse zum Keton postuliert (unkalibriert für Al/Hg).'
+                : 'Plausible Verharzung/Kondensation von Nitroalkenen bei Erwärmung (unkalibriert für Al/Hg).'}
             </p>
           </div>
 

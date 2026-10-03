@@ -129,26 +129,32 @@ export const TemperatureMatrixSection: React.FC = () => {
       <div className="mt-6 p-4 rounded-xl bg-slate-950/80 border border-slate-800">
         <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
           <div className="flex items-center gap-2">
-            <Thermometer className="w-4 h-4 text-amber-400" />
+            <Thermometer className="w-4 h-4 text-sky-400" />
             <h3 className="text-sm font-semibold text-slate-100 m-0">
-              Hypothesen-Rechner: Arrhenius-Ratenbeschleunigung &amp; Thermisches Risiko
+              Hypothesen-Rechner: Relative Arrhenius-Ratenfaktoren (unkalibriert)
             </h3>
           </div>
-          <span className="text-xs font-mono text-amber-300">
-            k(T) / k(20°C) = exp[−(E_a/R)(1/T − 1/293.15)]
+          <span className="text-xs font-mono text-sky-300">
+            k(T) / k(20 °C) = exp[−(E_a/R)(1/T − 1/293.15)]
           </span>
         </div>
 
-        <p className="text-xs text-slate-300 mb-3">
-          Wähle eine hypothetische Aktivierungsenergie Eₐ, um zu sehen, wie drastisch die
-          Reaktionsgeschwindigkeit mit der Temperatur ansteigt und ab wann ein thermisches Durchgehen
-          (Thermal Runaway) droht:
+        <p className="text-xs text-slate-300 mb-3 leading-relaxed">
+          Berechnet den theoretischen Beschleunigungsfaktor k(T)/k(20 °C) einer hypothetischen Einzelreaktion 
+          nach dem Arrhenius-Ansatz für frei wählbare Aktivierungsenergien Eₐ. 
+          <strong className="text-amber-300 block mt-1.5">
+            Wichtige physikochemische Grenze: Ein reiner Arrhenius-Faktor beschreibt keine thermische Stabilität 
+            und kann kein thermisches Durchgehen (Thermal Runaway) vorhersagen.
+          </strong>
+          Für eine tatsächliche Stabilitätsbewertung fehlen Reaktionsenthalpie (Wärmefreisetzung), Wärmekapazität 
+          des Gemisches, Reaktorwärmeabfuhr und deren dynamische Kopplung. Aktivierungsenergie ist zudem keine 
+          universelle Moleküleigenschaft, sondern mechanismus- und katalysatorabhängig.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center mb-4">
           <div className="md:col-span-2">
             <label className="text-xs text-slate-400 block mb-1 font-mono">
-              Hypothetische Aktivierungsenergie Eₐ: <span className="text-amber-300 font-bold">{hypoEa} kJ/mol</span>
+              Hypothetische Aktivierungsenergie Eₐ: <span className="text-sky-300 font-bold">{hypoEa} kJ/mol</span>
             </label>
             <input
               type="range"
@@ -157,74 +163,60 @@ export const TemperatureMatrixSection: React.FC = () => {
               step="5"
               value={hypoEa}
               onChange={(e) => setHypoEa(Number(e.target.value))}
-              className="w-full accent-amber-400"
+              className="w-full accent-sky-400"
             />
           </div>
 
-          <div className="md:col-span-2 flex gap-2">
+          <div className="md:col-span-2 flex gap-2 flex-wrap">
             <button
               type="button"
               className="text-xs px-2.5 py-1 bg-slate-900 border border-slate-800 text-slate-300 rounded hover:bg-slate-800"
               onClick={() => setHypoEa(40)}
             >
-              Niedrig (40 kJ/mol)
+              Hypothese 40 kJ/mol
             </button>
             <button
               type="button"
-              className="text-xs px-2.5 py-1 bg-slate-900 border border-slate-800 text-amber-300 rounded hover:bg-slate-800"
+              className="text-xs px-2.5 py-1 bg-slate-900 border border-slate-800 text-sky-300 rounded hover:bg-slate-800"
               onClick={() => setHypoEa(55)}
             >
-              Typisch (55 kJ/mol)
+              Hypothese 55 kJ/mol
             </button>
             <button
               type="button"
-              className="text-xs px-2.5 py-1 bg-slate-900 border border-slate-800 text-rose-300 rounded hover:bg-slate-800"
+              className="text-xs px-2.5 py-1 bg-slate-900 border border-slate-800 text-slate-300 rounded hover:bg-slate-800"
               onClick={() => setHypoEa(75)}
             >
-              Hoch (75 kJ/mol)
+              Hypothese 75 kJ/mol
             </button>
           </div>
         </div>
 
-        {/* Temperature Factor Cards */}
+        {/* Temperature Factor Cards without traffic lights */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center font-mono">
           {temps.map((item) => {
             const factor = calcRateFactor(item.kelvin);
-            const isHigh = factor > 20;
-            const isMedium = factor > 6 && factor <= 20;
 
             return (
               <div
                 key={item.label}
-                className={`p-3 rounded-lg border ${
-                  isHigh
-                    ? 'bg-rose-950/30 border-rose-500/50 text-rose-200'
-                    : isMedium
-                    ? 'bg-amber-950/30 border-amber-500/40 text-amber-200'
-                    : 'bg-slate-900/60 border-slate-800 text-slate-200'
-                }`}
+                className="p-3 rounded-lg border bg-slate-900/60 border-slate-800 text-slate-200"
               >
                 <div className="text-xs text-slate-400">{item.label}</div>
-                <div className="text-lg font-bold my-1">
+                <div className="text-lg font-bold my-1 text-sky-400">
                   {factor.toFixed(1).replace('.', ',')} ×
                 </div>
-                <div className="text-[10px] uppercase tracking-wider font-sans">
-                  {isHigh ? (
-                    <span className="flex items-center justify-center gap-1 text-rose-400 font-semibold">
-                      <Flame className="w-3 h-3" /> Durchgeh-Gefahr
-                    </span>
-                  ) : isMedium ? (
-                    <span className="flex items-center justify-center gap-1 text-amber-400">
-                      <AlertTriangle className="w-3 h-3" /> Starke Kühlung nötig
-                    </span>
-                  ) : (
-                    <span className="text-slate-400">Kontrollierbar</span>
-                  )}
+                <div className="text-[10px] text-slate-400 font-sans">
+                  Relativ zu 20 °C
                 </div>
               </div>
             );
           })}
         </div>
+        <p className="text-[11px] text-slate-400 mt-3 italic mb-0">
+          Hinweis: Alle Ratenfaktoren sind rein illustrative Verhältniswerte ohne experimentelle Kalibrierung 
+          oder thermische Sicherheitsbewertung.
+        </p>
       </div>
 
       <div className="pt-4 flex gap-3 flex-wrap">

@@ -29,7 +29,7 @@ export const AboutPlatformSection: React.FC = () => {
           - M3: Metal capacity balance & depletion endpoint (foil alpha=0 vs shrinking body alpha=2/3)
           - M1: Analytical cascade S -> P -> D & S -> B, peak calculation, side rate takeover
           - M2: Extended RK4 with surface deactivation lambda, transport m, intermediate pool, Tornado RMS sensitivities, SVD rank
-          - Arrhenius: Reaction acceleration & thermal runaway risk (20, 50, 70, 90 °C)
+          - Arrhenius: Relative rate factor calculation (20, 50, 70, 90 °C; no thermal runaway claims)
           - MCP Server: JSON-RPC 2.0 endpoint at /api/mcp with tools pea_simulate_m1, pea_simulate_m2, pea_simulate_m3, pea_arrhenius
           - OpenAPI: Specification at /api/openapi.json
         License & Expansion: Open Source - code may be extended, calibrated with empirical data, or integrated into AI pipelines.
@@ -69,7 +69,7 @@ export const AboutPlatformSection: React.FC = () => {
           </div>
           <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
             <strong className="text-slate-100 block mb-1">Modell M3 · Kapazitätsbilanz</strong>
-            Berechnet τ_Metall, differenziert Folien- vs. 3D-Körper-Geometrie und trennt produktive Elektronen von parasitärer H₂-Bildung.
+            Berechnet τ_Metall, differenziert Folien- vs. 3D-Körper-Geometrie und trennt produktive Elektronen von unproduktivem Nebenverbrauch W (nicht belegt als reiner H₂-Verlust).
           </div>
           <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
             <strong className="text-slate-100 block mb-1">Modell M1 · Kinetische Kaskade</strong>
@@ -80,8 +80,8 @@ export const AboutPlatformSection: React.FC = () => {
             Numerische Integration, Tornado-Sensitivitätsdiagramm und Singulärwertzerlegung zur Identifizierbarkeitsanalyse.
           </div>
           <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
-            <strong className="text-slate-100 block mb-1">Arrhenius-Temperaturrechner</strong>
-            Berechnet Ratenbeschleunigung bei 20, 50, 70 und 90 °C mit Warnanzeige vor unkontrolliertem thermischem Durchgehen (Thermal Runaway).
+            <strong className="text-slate-100 block mb-1">Arrhenius-Ratenfaktorrechner</strong>
+            Berechnet theoretische Ratenbeschleunigung k(T)/k(20 °C) bei 20, 50, 70 und 90 °C für hypothetische Aktivierungsenergien; keine unbegründeten thermischen Stabilitäts- oder Durchgehaussagen.
           </div>
           <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
             <strong className="text-slate-100 block mb-1">Modell-Overlay &amp; Exporte</strong>

@@ -631,10 +631,14 @@ export const AdvancedModelSection: React.FC = () => {
           Temperaturzeilen bleiben unkalibriert.
         </p>
         <p>
-          Integration: klassisches Runge-Kutta-Verfahren 4. Ordnung, Schrittweite höchstens 0,005.
-          Keine adaptive Fehlersteuerung. Lokale Ableitungen durch symmetrische Variation um ±0,001
-          in ln(Parameter). Ratenkreuzungen werden zwischen Rasterpunkten linear interpoliert; das
-          gemeldete Produktmaximum ist ein Rastermaximum innerhalb des Fensters.
+          Integration: Adaptives Runge-Kutta-Verfahren 4. Ordnung mit Schrittverdopplung, lokaler
+          Fehlerabschätzung und Richardson-Extrapolation (Toleranzen rtol = 10⁻⁸, atol = 10⁻¹⁰,
+          maximale Schrittweite 0,05, Ausgaberaster Δτ = 0,05 auf [0, 6]).
+          Lokale Ableitungen durch symmetrische logarithmische Variation um ±0,001.
+          Singulärwerte und numerischer Rang über direkte einseitige Jacobi-SVD der Jacobimatrix J.
+          Ratenkreuzungen werden durch Bisektion (Toleranz 10⁻⁸) verfeinert.
+          (Hinweis: Die Python-Referenzimplementierung in <code>python/models/model_m2.py</code> verwendet
+          zum Vergleich ein festes RK4-Verfahren mit Zeitschrittverkürzung am Intervallende.)
         </p>
       </details>
 

@@ -16,6 +16,25 @@ assert np.max(np.abs(rows[:,1]-S)) < 1e-10
 assert np.max(np.abs(rows[:,2]-I)) < 1e-10
 assert np.allclose(rows[:,1:].sum(axis=1),1,atol=1e-12)
 assert rows[:,1:].min() >= -1e-12
+
+# Independent unequal-rate chain (u=2): S=e^-0.5t, I=e^-0.5t - e^-t, P=1 - 2e^-0.5t + e^-t
+rows_u2=np.array(simulate_m2(lam=0,q=0,r=0,u=2,tau_end=2.0,dt=.005))
+t2=rows_u2[:,0]; S2=np.exp(-.5*t2); I2=np.exp(-.5*t2)-np.exp(-t2); P2=1.0-2.0*np.exp(-.5*t2)+np.exp(-t2)
+assert np.max(np.abs(rows_u2[:,1]-S2)) < 1e-10
+assert np.max(np.abs(rows_u2[:,2]-I2)) < 1e-10
+assert np.max(np.abs(rows_u2[:,3]-P2)) < 1e-10
+assert np.allclose(rows_u2[:,1:].sum(axis=1),1,atol=1e-12)
+
+# Exact algebraic degeneracy at lambda=0: (a0=1, m=1) vs (a0=2, m=2/3) both have h=0.5
+deg1=np.array(simulate_m2(a0=1.0,m=1.0,lam=0,u=1.3,q=0.25,r=0.15,tau_end=3.0,dt=.01))
+deg2=np.array(simulate_m2(a0=2.0,m=2.0/3.0,lam=0,u=1.3,q=0.25,r=0.15,tau_end=3.0,dt=.01))
+assert np.max(np.abs(deg1[:,1:]-deg2[:,1:])) < 1e-10
+
+# Test non-zero side rates and deactivation
+gen_rows=np.array(simulate_m2(a0=2.0,lam=0.3,m=1.5,u=1.2,q=0.3,r=0.2,tau_end=5.0,dt=.005))
+assert np.allclose(gen_rows[:,1:].sum(axis=1),1,atol=1e-11)
+assert gen_rows[:,1:].min() >= -1e-12
+
 coarse=np.array(simulate_m2(dt=.1))[-1,1:]
 fine=np.array(simulate_m2(dt=.05))[-1,1:]
 reference=np.array(simulate_m2(dt=.002))[-1,1:]

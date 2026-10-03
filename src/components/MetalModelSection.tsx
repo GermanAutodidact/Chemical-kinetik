@@ -222,7 +222,7 @@ export const MetalModelSection: React.FC = () => {
           className="px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-rose-300 border border-slate-800 transition-colors"
           onClick={() => handlePreset('parasite')}
         >
-          H₂-Parasitismus (η=0,35)
+          Hoher Nebenverbrauch (η=0,35)
         </button>
         <button
           type="button"

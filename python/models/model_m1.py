@@ -18,5 +18,5 @@ def simulate_m1(q=0.25, r=0.15, tau_end=6.0, steps=240):
     else:
         P = np.exp(-min(K, r) * taus) * (-np.expm1(-delta * taus)) / delta
     B = (q / K) * (1.0 - np.exp(-K * taus))
-    D = 1.0 - S - P - B
+    D = np.maximum(0.0, 1.0 - S - P - B)
     return taus, S, P, B + D

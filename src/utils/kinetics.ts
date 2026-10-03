@@ -52,6 +52,23 @@ export function solveSubstrate(K: number, target: number): number {
 export function calculateMetalModel(params: MetalModelParams): MetalResult {
   const { capacity: C0, flux: J0, eta, K, geometry } = params;
 
+  if (geometry !== 'foil' && geometry !== 'solid') {
+    throw new Error('Ungültige Geometriebezeichnung: nur "foil" oder "solid" zulässig');
+  }
+  if (
+    !Number.isFinite(C0) ||
+    !Number.isFinite(J0) ||
+    !Number.isFinite(eta) ||
+    !Number.isFinite(K) ||
+    C0 <= 0 ||
+    J0 <= 0 ||
+    eta < 0 ||
+    eta > 1 ||
+    K < 0
+  ) {
+    throw new Error('Ungültige Parameter für Modell M3: C0 > 0, J0 > 0, 0 <= eta <= 1, K >= 0');
+  }
+
   // Metal end time tau_metal
   // foil: alpha = 0 => tau = C0 / J0
   // solid: alpha = 2/3 => tau = 3 * C0 / J0
@@ -234,147 +251,147 @@ export function calculateSimpleModel(params: SimpleModelParams): SimpleModelResu
  * B' = q*S
  * D' = r*P
  */
+function rk4Step(
+  f: (t: number, y: number[]) => number[],
+  t: number,
+  y: number[],
+  h: number
+): number[] {
+  const a = f(t, y);
+  const b = f(t + h / 2, y.map((v, i) => v + (h * a[i]) / 2));
+  const c = f(t + h / 2, y.map((v, i) => v + (h * b[i]) / 2));
+  const d = f(t + h, y.map((v, i) => v + h * c[i]));
+  return y.map((v, i) => v + (h * (a[i] + 2 * b[i] + 2 * c[i] + d[i])) / 6);
+}
+
+function integrateAdaptive(
+  f: (t: number, y: number[]) => number[],
+  t: number,
+  y: number[],
+  end: number,
+  opts: { rtol?: number; atol?: number; maxStep?: number } = {}
+): number[] {
+  const { rtol = 1e-8, atol = 1e-10, maxStep = 0.05 } = opts;
+  let h = Math.min(maxStep, end - t);
+  let attempts = 0;
+  while (t < end - 1e-13) {
+    if (++attempts > 100000) throw new Error('Integrationslimit erreicht');
+    h = Math.min(h, end - t);
+    const whole = rk4Step(f, t, y, h);
+    const half = rk4Step(f, t, y, h / 2);
+    const fine = rk4Step(f, t + h / 2, half, h / 2);
+    const estimate = fine.map((v, i) => v + (v - whole[i]) / 15);
+    const error = Math.max(
+      ...fine.map(
+        (v, i) => Math.abs((v - whole[i]) / 15) / (atol + rtol * Math.max(Math.abs(y[i]), Math.abs(v)))
+      )
+    );
+    if (!Number.isFinite(error)) throw new Error('Nichtendliche Integration');
+    if (error <= 1 && estimate.every((v) => v >= -atol)) {
+      y = estimate;
+      t += h;
+      h *= error === 0 ? 2 : Math.min(2, Math.max(0.2, 0.9 * Math.pow(error, -0.2)));
+    } else {
+      h *= 0.5;
+    }
+    if (h < 1e-12) throw new Error('Schrittweite zu klein');
+  }
+  return y;
+}
+
+function singularValuesOneSided(columns: number[][]): number[] {
+  const b = columns.map((c) => c.slice());
+  const n = b.length;
+  const dot = (a: number[], c: number[]) => a.reduce((s, v, i) => s + v * c[i], 0);
+  for (let sweep = 0; sweep < 100; sweep++) {
+    let changed = false;
+    for (let p = 0; p < n; p++) {
+      for (let q = p + 1; q < n; q++) {
+        const a = dot(b[p], b[p]);
+        const d = dot(b[q], b[q]);
+        const g = dot(b[p], b[q]);
+        if (!a || !d || Math.abs(g) <= 1e-14 * Math.sqrt(a * d)) continue;
+        const z = (d - a) / (2 * g);
+        const t = (z >= 0 ? 1 : -1) / (Math.abs(z) + Math.sqrt(1 + z * z));
+        const c = 1 / Math.sqrt(1 + t * t);
+        const s = c * t;
+        for (let i = 0; i < b[p].length; i++) {
+          const x = b[p][i];
+          const y = b[q][i];
+          b[p][i] = c * x - s * y;
+          b[q][i] = s * x + c * y;
+        }
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  return b.map((c) => Math.sqrt(dot(c, c))).sort((a, b) => b - a);
+}
+
+function bisectEvent(f: (t: number) => number, a: number, b: number, tol = 1e-8): number {
+  let fa = f(a);
+  let fb = f(b);
+  if (fa === 0) return a;
+  if (fb === 0) return b;
+  if (fa * fb > 0) throw new Error('Kein eingeschlossener Vorzeichenwechsel');
+  for (let i = 0; i < 70 && b - a > tol; i++) {
+    const m = (a + b) / 2;
+    const fm = f(m);
+    if (fa * fm <= 0) {
+      b = m;
+      fb = fm;
+    } else {
+      a = m;
+      fa = fm;
+    }
+  }
+  return (a + b) / 2;
+}
+
+function m2Rhs(
+  t: number,
+  y: number[],
+  p: AdvancedModelParams
+): [number, number, number, number, number] {
+  const a = p.a0 * Math.exp(-p.lambda * t);
+  const h = (a * p.m) / (a + p.m);
+  const dS = -h * y[0] - p.q * y[0];
+  const dI = h * y[0] - p.u * h * y[1];
+  const dP = p.u * h * y[1] - p.r * y[2];
+  const dB = p.q * y[0];
+  const dD = p.r * y[2];
+  return [dS, dI, dP, dB, dD];
+}
+
 function integrateM2(
   p: AdvancedModelParams,
   tauEnd = 6.0,
-  dt = 0.005
+  step = 0.05
 ): { tau: number; S: number; I: number; P: number; B: number; D: number }[] {
-  const steps = Math.round(tauEnd / dt);
-  let S = 1.0;
-  let I = 0.0;
-  let P = 0.0;
-  let B = 0.0;
-  let D = 0.0;
+  for (const k of ['a0', 'lambda', 'm', 'u', 'q', 'r'] as const) {
+    if (!Number.isFinite(p[k]) || p[k] < 0) throw new Error('Ungültiger Parameter ' + k);
+  }
+  if (p.a0 === 0 || p.m === 0) throw new Error('Oberflächen- und Transportparameter müssen positiv sein');
 
-  const results: { tau: number; S: number; I: number; P: number; B: number; D: number }[] = [
-    { tau: 0, S, I, P, B, D },
-  ];
+  const numGrid = Math.round(tauEnd / 0.05);
+  const rows: { tau: number; S: number; I: number; P: number; B: number; D: number }[] = [];
+  let y = [1.0, 0.0, 0.0, 0.0, 0.0];
+  let t = 0.0;
+  rows.push({ tau: 0, S: y[0], I: y[1], P: y[2], B: y[3], D: y[4] });
 
-  const deriv = (
-    tau: number,
-    s: number,
-    i: number,
-    prod: number
-  ): [number, number, number, number, number] => {
-    const a = p.a0 * Math.exp(-p.lambda * tau);
-    const h = (a * p.m) / (a + p.m);
-    const dS = -h * s - p.q * s;
-    const dI = h * s - p.u * h * i;
-    const dP = p.u * h * i - p.r * prod;
-    const dB = p.q * s;
-    const dD = p.r * prod;
-    return [dS, dI, dP, dB, dD];
-  };
-
-  for (let step = 0; step < steps; step++) {
-    const t = step * dt;
-
-    const [k1S, k1I, k1P, k1B, k1D] = deriv(t, S, I, P);
-    const [k2S, k2I, k2P, k2B, k2D] = deriv(
-      t + 0.5 * dt,
-      S + 0.5 * dt * k1S,
-      I + 0.5 * dt * k1I,
-      P + 0.5 * dt * k1P
-    );
-    const [k3S, k3I, k3P, k3B, k3D] = deriv(
-      t + 0.5 * dt,
-      S + 0.5 * dt * k2S,
-      I + 0.5 * dt * k2I,
-      P + 0.5 * dt * k2P
-    );
-    const [k4S, k4I, k4P, k4B, k4D] = deriv(
-      t + dt,
-      S + dt * k3S,
-      I + dt * k3I,
-      P + dt * k3P
-    );
-
-    S += (dt / 6) * (k1S + 2 * k2S + 2 * k3S + k4S);
-    I += (dt / 6) * (k1I + 2 * k2I + 2 * k3I + k4I);
-    P += (dt / 6) * (k1P + 2 * k2P + 2 * k3P + k4P);
-    B += (dt / 6) * (k1B + 2 * k2B + 2 * k3B + k4B);
-    D += (dt / 6) * (k1D + 2 * k2D + 2 * k3D + k4D);
-
-    // Guard bounds
-    if (S < 0) S = 0;
-    if (I < 0) I = 0;
-    if (P < 0) P = 0;
-
-    results.push({ tau: (step + 1) * dt, S, I, P, B, D });
+  for (let i = 1; i <= numGrid; i++) {
+    const targetT = i * 0.05;
+    y = integrateAdaptive((time, state) => m2Rhs(time, state, p), t, y, targetT, {
+      maxStep: step,
+      rtol: 1e-8,
+      atol: 1e-10,
+    });
+    t = targetT;
+    rows.push({ tau: t, S: y[0], I: y[1], P: y[2], B: y[3], D: y[4] });
   }
 
-  return results;
-}
-
-/**
- * Jacobi eigenvalue algorithm for symmetric 6x6 matrix
- */
-function jacobiEigenvalues(A: number[][], maxIter = 100): number[] {
-  const n = A.length;
-  const V: number[][] = Array.from({ length: n }, (_, i) =>
-    Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))
-  );
-  const D = A.map((row) => [...row]);
-
-  for (let iter = 0; iter < maxIter; iter++) {
-    let maxOff = 0;
-    let p = 0;
-    let q = 1;
-
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        if (Math.abs(D[i][j]) > maxOff) {
-          maxOff = Math.abs(D[i][j]);
-          p = i;
-          q = j;
-        }
-      }
-    }
-
-    if (maxOff < 1e-12) break;
-
-    const diff = D[q][q] - D[p][p];
-    let t: number;
-    if (Math.abs(D[p][q]) < 1e-15) {
-      t = 0;
-    } else {
-      const phi = diff / (2 * D[p][q]);
-      t = 1 / (Math.abs(phi) + Math.sqrt(phi * phi + 1));
-      if (phi < 0) t = -t;
-    }
-
-    const c = 1 / Math.sqrt(t * t + 1);
-    const s = t * c;
-    const tau = s / (1 + c);
-
-    const tempDpq = D[p][q];
-    D[p][q] = 0;
-    D[q][p] = 0;
-    D[p][p] -= t * tempDpq;
-    D[q][q] += t * tempDpq;
-
-    for (let i = 0; i < n; i++) {
-      if (i !== p && i !== q) {
-        const dip = D[i][p];
-        const diq = D[i][q];
-        D[i][p] = dip - s * (diq + tau * dip);
-        D[p][i] = D[i][p];
-        D[i][q] = diq + s * (dip - tau * diq);
-        D[q][i] = D[i][q];
-      }
-    }
-
-    for (let i = 0; i < n; i++) {
-      const vip = V[i][p];
-      const viq = V[i][q];
-      V[i][p] = c * vip - s * viq;
-      V[i][q] = s * vip + c * viq;
-    }
-  }
-
-  const eigenvalues = Array.from({ length: n }, (_, i) => D[i][i]);
-  eigenvalues.sort((a, b) => b - a);
-  return eigenvalues;
+  return rows;
 }
 
 export function calculateAdvancedModel(
@@ -450,31 +467,37 @@ export function calculateAdvancedModel(
   // Rate crossings
   // rate_formation = u * h * I
   // rate_side = q * S + r * P
-  // diff = rate_formation - rate_side
   const crossings: { tau: number; type: 'formation_takes_over' | 'side_takes_over' }[] = [];
-  let prevDiff = 0;
 
-  for (let idx = 0; idx < grid.length; idx++) {
-    const pt = grid[idx];
-    const a = params.a0 * Math.exp(-params.lambda * pt.tau);
-    const h = (a * params.m) / (a + params.m);
-    const rForm = params.u * h * pt.I;
-    const rSide = params.q * pt.S + params.r * pt.P;
-    const diff = rForm - rSide;
+  for (let idx = 1; idx < grid.length; idx++) {
+    const aPt = grid[idx - 1];
+    const bPt = grid[idx];
+    const aVal = params.a0 * Math.exp(-params.lambda * aPt.tau);
+    const ha = (aVal * params.m) / (aVal + params.m);
+    const fa = (params.q * aPt.S + params.r * aPt.P) - (params.u * ha * aPt.I);
 
-    if (idx > 0) {
-      if (prevDiff < 0 && diff >= 0) {
-        // Linear interpolation
-        const prevTau = grid[idx - 1].tau;
-        const cross = prevTau + ((0 - prevDiff) / (diff - prevDiff)) * (pt.tau - prevTau);
-        crossings.push({ tau: cross, type: 'formation_takes_over' });
-      } else if (prevDiff > 0 && diff <= 0) {
-        const prevTau = grid[idx - 1].tau;
-        const cross = prevTau + ((0 - prevDiff) / (diff - prevDiff)) * (pt.tau - prevTau);
-        crossings.push({ tau: cross, type: 'side_takes_over' });
-      }
+    const bVal = params.a0 * Math.exp(-params.lambda * bPt.tau);
+    const hb = (bVal * params.m) / (bVal + params.m);
+    const fb = (params.q * bPt.S + params.r * bPt.P) - (params.u * hb * bPt.I);
+
+    if (fa * fb < 0) {
+      const evalDiffAt = (timeVal: number) => {
+        const yState = integrateAdaptive(
+          (t, y) => m2Rhs(t, y, params),
+          aPt.tau,
+          [aPt.S / 100, aPt.I / 100, aPt.P / 100, aPt.B / 100, aPt.D / 100],
+          timeVal
+        );
+        const aT = params.a0 * Math.exp(-params.lambda * timeVal);
+        const hT = (aT * params.m) / (aT + params.m);
+        return params.q * yState[0] + params.r * yState[2] - params.u * hT * yState[1];
+      };
+      const cross = bisectEvent(evalDiffAt, aPt.tau, bPt.tau);
+      crossings.push({
+        tau: cross,
+        type: fb > 0 ? 'side_takes_over' : 'formation_takes_over',
+      });
     }
-    prevDiff = diff;
   }
 
   // Sensitivity Analysis
@@ -547,29 +570,13 @@ export function calculateAdvancedModel(
   // Sort sensitivities descending by RMS
   sensitivities.sort((a, b) => b.rms - a.rms);
 
-  // Compute J^T * J (6x6)
   const numParams = 6;
   const numObs = JCols[0].length;
-  const JTJ: number[][] = Array.from({ length: numParams }, () =>
-    Array(numParams).fill(0)
-  );
-
-  for (let i = 0; i < numParams; i++) {
-    for (let j = 0; j < numParams; j++) {
-      let sum = 0;
-      for (let k = 0; k < numObs; k++) {
-        sum += JCols[i][k] * JCols[j][k];
-      }
-      JTJ[i][j] = sum;
-    }
-  }
-
-  const eigenvalues = jacobiEigenvalues(JTJ);
-  const singularValues = eigenvalues.map((e) => Math.sqrt(Math.max(0, e)));
+  const singularValues = singularValuesOneSided(JCols);
 
   // Numerical rank with threshold 10^-5 relative to largest singular value
   const sMax = singularValues[0] || 1;
-  const rank = singularValues.filter((s) => s / sMax >= 1e-5).length;
+  const rank = singularValues.filter((s) => sMax > 0 && s / sMax >= 1e-5).length;
 
   // Pairwise cosine similarity
   let maxSim = -1;

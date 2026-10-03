@@ -135,7 +135,7 @@ export const AiApiSection: React.FC = () => {
               <li><code className="text-sky-300">pea_simulate_m1</code>: Analytische Kaskade &amp; Produktmaximum.</li>
               <li><code className="text-sky-300">pea_simulate_m2</code>: RK4-Simulation mit Deaktivierung &amp; SVD-Rang.</li>
               <li><code className="text-sky-300">pea_simulate_m3</code>: Metallauflösung, Geometrie &amp; Kapazitätsbilanz.</li>
-              <li><code className="text-sky-300">pea_arrhenius</code>: Temperaturfaktoren &amp; thermische Stabilität.</li>
+              <li><code className="text-sky-300">pea_arrhenius</code>: Hypothetische Arrhenius-Ratenfaktoren (ohne thermische Stabilitätsaussage).</li>
             </ul>
           </div>
         </div>

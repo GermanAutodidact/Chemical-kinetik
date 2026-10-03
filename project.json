@@ -13,14 +13,17 @@
   "architecture": "docs/ARCHITECTURE.md",
   "evidence": "dist/bericht.md",
   "tests": [
+    "npm run test:unit",
     "node tests.mjs",
     "node tests-advanced.mjs",
     "node tests-metal.mjs",
-    "node tests-v4.mjs"
+    "node tests-v4.mjs",
+    "node tests-mcp.mjs",
+    "python3 python/test_models.py"
   ],
   "runtime_dependencies": [
-    "Cloudflare Worker",
-    "D1 for suggestions"
+    "Node.js / Express on Google Cloud Run",
+    "SQLite for durable suggestions"
   ],
   "calibrated": false,
   "experimental_data_included": false,
