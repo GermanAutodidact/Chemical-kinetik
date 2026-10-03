@@ -98,7 +98,7 @@ export const AboutPlatformSection: React.FC = () => {
         </div>
         <p className="text-xs text-slate-300 leading-relaxed mb-3">
           Die automatisierte Testsuite in <code>src/tests/kinetics.test.ts</code> validiert den analytischen M1-Löser gegen
-          mathematische Erhaltungssätze, Randwertbedingungen und substanzspezifische Szenarien für β-Nitrostyrol und P2NP.
+          mathematische Erhaltungssätze, Randwertbedingungen und frei gewählte hypothetische Parameterszenarien.
         </p>
 
         <div className="bg-slate-950 rounded-lg p-3 font-mono text-xs text-slate-300 border border-slate-800 mb-3 overflow-x-auto">

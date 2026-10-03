@@ -297,14 +297,10 @@ export const ContributeSection: React.FC = () => {
             Hinweis zur GitHub-Synchronisierung &amp; Reproduzierbarkeit:
           </p>
           <p className="mb-2">
-            Diese Web-App läuft als eigenständiger Dienst auf Google Cloud Run. Die automatische Synchronisierung 
-            mit dem GitHub-Repository <code>GermanAutodidact/Chemical-kinetik</code> erfordert persönliche GitHub-Schreibrechte. 
-            Bis dahin ist der vollständige, überprüfbare Stand im Quellpaket (ZIP) enthalten.
+            Diese Version ist über OpenAI Work / Sites veröffentlicht. Beiträge werden in der verwalteten D1-Datenbank gespeichert.
+            Der Quellcode ist im öffentlichen Repository <a href="https://github.com/GermanAutodidact/Chemical-kinetik" className="text-sky-400 underline">GermanAutodidact/Chemical-kinetik</a> und als ZIP verfügbar.
           </p>
-          <p>
-            <strong>So veröffentlichst du den Stand auf GitHub:</strong> Lade das obige Quellpaket (<code>pea-kinetics-source.zip</code>) 
-            herunter, entpacke es in dein lokales Repository und führe <code>git add . &amp;&amp; git commit -m "Complete model suite" &amp;&amp; git push</code> aus.
-          </p>
+          <p>Beiträge ändern den Code nicht automatisch. Änderungen werden geprüft, getestet und anschließend separat veröffentlicht.</p>
         </div>
       </div>
     </section>

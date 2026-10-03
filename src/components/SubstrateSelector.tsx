@@ -22,7 +22,7 @@ export const SubstrateSelector: React.FC<SubstrateSelectorProps> = ({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
           <Atom className="w-4 h-4 text-sky-400" />
-          <span>Ausgangssubstrat wählen:</span>
+          <span>Stoffvergleich wählen:</span>
         </div>
 
         <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-lg border border-slate-800 w-full sm:w-auto">
@@ -60,9 +60,7 @@ export const SubstrateSelector: React.FC<SubstrateSelectorProps> = ({
           <span className="text-slate-500">({SUBSTRATES[currentSubstrate].productWeight} g/mol)</span>
         </div>
         <div className="text-[11px] text-amber-300/90 font-sans">
-          {currentSubstrate === 'nitropropene'
-            ? '⚡ Methylgruppe bewirkt sterische Hinderung & Oxim-Stabilität (Phenylaceton-Zwischenstufe)'
-            : '⚡ Direktere Kaskade über unverschirmtes Phenylacetaldoxim'}
+          Strukturvergleich · kein gemessener Reaktionsweg
         </div>
       </div>
     </div>
