@@ -189,3 +189,158 @@ export function fitDataToModel(rows: DataRow[], model: 'M1' | 'M0' = 'M1'): FitR
     })),
   };
 }
+
+export interface ProfilePoint {
+  val: number;
+  loss: number;
+  deltaChi2: number;
+  rates: number[];
+}
+
+export interface ProfileLikelihoodResult {
+  paramIndex: number;
+  paramName: string;
+  bestVal: number;
+  thresholdChi2: number; // 3.84 for 95% 1-DOF
+  identifiable: boolean;
+  points: ProfilePoint[];
+}
+
+/**
+ * Calculates 1D Profile Likelihood (inspired by pyPESTO and Raue et al. 2009).
+ * Fixes target parameter theta_i across a grid and re-optimizes remaining parameters.
+ */
+export function calculateProfileLikelihood(
+  rows: DataRow[],
+  paramIndex: number,
+  bestRates: number[],
+  model: 'M1' | 'M0' = 'M1',
+  steps = 15
+): ProfileLikelihoodResult {
+  const scale = rows[rows.length - 1].t;
+  const cut = Math.max(5, Math.floor(rows.length * 0.8));
+  const train = rows.slice(0, cut);
+  const dim = model === 'M0' ? 2 : 3;
+  const bestRate = bestRates[paramIndex];
+  const paramNames = model === 'M0' ? ['k₁ (Bildung)', 'k₂ (Verlust S)'] : ['k₁ (Bildung)', 'k₂ (Verlust S)', 'k₃ (Verlust P)'];
+
+  const loss = (rates: number[]) => {
+    let sum = 0;
+    let n = 0;
+    for (const d of train) {
+      const p = predictAt(rates, d.t);
+      sum += (p.P - d.P) ** 2;
+      n++;
+      if (d.S !== null) {
+        sum += (p.S - d.S) ** 2;
+        n++;
+      }
+    }
+    return sum / n;
+  };
+
+  const minLoss = loss(bestRates);
+  const points: ProfilePoint[] = [];
+
+  // Log-spaced variation around best rate: [0.2x, 5.0x]
+  const logMin = Math.log(bestRate * 0.2);
+  const logMax = Math.log(bestRate * 5.0);
+
+  for (let s = 0; s < steps; s++) {
+    const fixedLogRate = logMin + (s / (steps - 1)) * (logMax - logMin);
+    const fixedRate = Math.exp(fixedLogRate);
+
+    // Initial guess for remaining parameters from bestRates
+    const xInit = bestRates.map((r) => Math.log(r * scale));
+    xInit[paramIndex] = Math.log(fixedRate * scale);
+
+    // Optimize other parameters with coordinate search
+    let xOpt = xInit.slice(0, dim);
+    let step = 0.5;
+
+    for (let iter = 0; iter < 100 && step > 1e-4; iter++) {
+      let changed = false;
+      for (let j = 0; j < dim; j++) {
+        if (j === paramIndex) continue; // Keep fixed parameter constant
+        for (const sign of [-1, 1]) {
+          const y = xOpt.slice();
+          y[j] = Math.max(-12, Math.min(8, y[j] + sign * step));
+          const currentRates = y.map((v) => Math.exp(v) / scale);
+          if (loss(currentRates) < loss(xOpt.map((v) => Math.exp(v) / scale))) {
+            xOpt = y;
+            changed = true;
+          }
+        }
+      }
+      if (!changed) step *= 0.5;
+    }
+
+    const currentRates = xOpt.map((v) => Math.exp(v) / scale);
+    const currentLoss = loss(currentRates);
+    // Delta chi-squared approximation: N * (loss - minLoss) / minLoss
+    const deltaChi2 = Math.max(0, train.length * ((currentLoss - minLoss) / Math.max(1e-12, minLoss)));
+
+    points.push({
+      val: fixedRate,
+      loss: currentLoss,
+      deltaChi2,
+      rates: currentRates,
+    });
+  }
+
+  // 95% confidence threshold for 1 degree of freedom is 3.84 (Wilks theorem)
+  const thresholdChi2 = 3.84;
+  const leftCross = points.some((p) => p.val < bestRate && p.deltaChi2 >= thresholdChi2);
+  const rightCross = points.some((p) => p.val > bestRate && p.deltaChi2 >= thresholdChi2);
+  const identifiable = leftCross && rightCross;
+
+  return {
+    paramIndex,
+    paramName: paramNames[paramIndex] || `k${paramIndex + 1}`,
+    bestVal: bestRate,
+    thresholdChi2,
+    identifiable,
+    points,
+  };
+}
+
+/**
+ * Generates standard PEtab-compatible TSV tables (measurements.tsv and parameters.tsv).
+ * Based on open-source PEtab specification (github.com/PEtab-dev/PEtab).
+ */
+export function exportToPEtab(
+  rows: DataRow[],
+  fitResult?: FitResult | null
+): { measurementsTsv: string; parametersTsv: string; observablesTsv: string } {
+  // 1. measurements.tsv
+  const mLines: string[] = ['observableId\tsimulationConditionId\ttime\tmeasurement'];
+  for (const r of rows) {
+    mLines.push(`obs_P\tcond1\t${r.t}\t${r.P}`);
+    if (r.S !== null) {
+      mLines.push(`obs_S\tcond1\t${r.t}\t${r.S}`);
+    }
+  }
+
+  // 2. parameters.tsv
+  const pLines: string[] = [
+    'parameterId\tparameterScale\tlowerBound\tupperBound\tnominalValue\testimate',
+  ];
+  const pList = fitResult?.model === 'M0' ? ['k1', 'k2'] : ['k1', 'k2', 'k3'];
+  pList.forEach((pid, idx) => {
+    const val = fitResult ? fitResult.rates[idx] : 1.0;
+    pLines.push(`${pid}\tlin\t1e-6\t100\t${val.toFixed(5)}\t1`);
+  });
+
+  // 3. observables.tsv
+  const obsLines: string[] = [
+    'observableId\tobservableFormula\tobservableTransformation\tnoiseFormula\tnoiseDistribution',
+    'obs_P\tP\tlin\t0.05\tnormal',
+    'obs_S\tS\tlin\t0.05\tnormal',
+  ];
+
+  return {
+    measurementsTsv: mLines.join('\n'),
+    parametersTsv: pLines.join('\n'),
+    observablesTsv: obsLines.join('\n'),
+  };
+}

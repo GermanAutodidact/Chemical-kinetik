@@ -4,9 +4,16 @@
  */
 
 import React, { useState } from 'react';
-import { parseCsvData, fitDataToModel, FitResult } from '../utils/fit';
-import { exportJson } from '../utils/export';
-import { Play, Download, Sparkles, AlertCircle } from 'lucide-react';
+import {
+  parseCsvData,
+  fitDataToModel,
+  calculateProfileLikelihood,
+  exportToPEtab,
+  FitResult,
+  ProfileLikelihoodResult,
+} from '../utils/fit';
+import { exportJson, downloadFile } from '../utils/export';
+import { Play, Download, Sparkles, AlertCircle, Activity, FileSpreadsheet } from 'lucide-react';
 
 export const DataFitSection: React.FC = () => {
   const [model, setModel] = useState<'M1' | 'M0'>('M1');
@@ -20,12 +27,18 @@ export const DataFitSection: React.FC = () => {
   const [statusMsg, setStatusMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Profile Likelihood state (pyPESTO / Raue et al. 2009 inspired)
+  const [selectedParam, setSelectedParam] = useState<number>(0);
+  const [profileResult, setProfileResult] = useState<ProfileLikelihoodResult | null>(null);
+  const [isProfiling, setIsProfiling] = useState(false);
+
   const handleLoadDemo = () => {
     setErrorMsg('');
     setStatusMsg('Synthetisches Demonstrationsbeispiel geladen.');
     setCsvText(
       't,S,P\n0.0,1.000,0.000\n0.5,0.730,0.228\n1.0,0.533,0.360\n1.5,0.389,0.428\n2.0,0.284,0.457\n2.5,0.207,0.461\n3.0,0.151,0.449\n3.5,0.110,0.428\n4.0,0.081,0.401\n4.5,0.059,0.372\n5.0,0.043,0.343\n5.5,0.031,0.315\n6.0,0.023,0.288'
     );
+    setProfileResult(null);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,6 +50,7 @@ export const DataFitSection: React.FC = () => {
       setCsvText(content);
       setStatusMsg(`Datei "${file.name}" geladen.`);
       setErrorMsg('');
+      setProfileResult(null);
     };
     reader.readAsText(file);
   };
@@ -44,6 +58,7 @@ export const DataFitSection: React.FC = () => {
   const handleRunFit = () => {
     setErrorMsg('');
     setStatusMsg('');
+    setProfileResult(null);
     try {
       const rows = parseCsvData(csvText);
       const res = fitDataToModel(rows, model);
@@ -54,6 +69,34 @@ export const DataFitSection: React.FC = () => {
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : String(err));
       setFitResult(null);
+    }
+  };
+
+  const handleComputeProfile = () => {
+    if (!fitResult) return;
+    setIsProfiling(true);
+    try {
+      const rows = parseCsvData(csvText);
+      const prof = calculateProfileLikelihood(rows, selectedParam, fitResult.rates, model, 21);
+      setProfileResult(prof);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsProfiling(false);
+    }
+  };
+
+  const handleExportPEtab = () => {
+    try {
+      const rows = parseCsvData(csvText);
+      const petab = exportToPEtab(rows, fitResult);
+      downloadFile(
+        `petab_measurements_${model}.tsv`,
+        petab.measurementsTsv,
+        'text/tab-separated-values;charset=utf-8;'
+      );
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -207,6 +250,15 @@ export const DataFitSection: React.FC = () => {
         >
           <Download className="w-3.5 h-3.5" /> Ergebnis speichern (JSON)
         </button>
+        <button
+          id="fit-petab"
+          type="button"
+          onClick={handleExportPEtab}
+          className="secondary-btn text-xs inline-flex items-center gap-1.5"
+          title="Exportiert TSV-Dateien nach dem offenen Standard PEtab (kompatibel mit pyPESTO, PEtab.jl, AMICI)"
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5 text-sky-400" /> PEtab-Standard exportieren (TSV)
+        </button>
       </div>
 
       {statusMsg && (
@@ -294,7 +346,132 @@ export const DataFitSection: React.FC = () => {
         </div>
       )}
 
-      <details>
+      {/* Profile Likelihood Inspector (pyPESTO / Raue et al. 2009 inspired) */}
+      {fitResult && (
+        <div className="mt-4 p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-xs">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-sky-400" />
+              <h3 className="text-sm font-semibold text-slate-100 m-0">
+                Profil-Likelihood-Inspektor (Identifizierbarkeitsanalyse)
+              </h3>
+            </div>
+            <span className="text-[11px] text-slate-400 font-mono">
+              Konzept adaptiert von pyPESTO / Raue et al. (2009)
+            </span>
+          </div>
+
+          <p className="text-slate-300 mb-3 leading-relaxed">
+            Berechnet den Verlauf von Δχ² bei schrittweiser Fixierung eines Zielparameters unter Re-Optimierung 
+            aller verbleibenden Parameter. Überschreitet das Profil die 95%-Schwelle (Δχ² = 3,84) beidseitig, 
+            ist der Parameter für diese Messdaten <strong>praktisch identifizierbar</strong>. Verbleibt das Profil 
+            flach, liegt eine Nicht-Identifizierbarkeit vor.
+          </p>
+
+          <div className="flex items-center gap-3 flex-wrap mb-4">
+            <label className="text-slate-400 font-mono">Zu untersuchender Parameter:</label>
+            <select
+              value={selectedParam}
+              onChange={(e) => setSelectedParam(Number(e.target.value))}
+              className="bg-slate-900 border border-slate-800 rounded p-1 text-slate-200"
+            >
+              <option value={0}>k₁ (Bildungsrate Produkt)</option>
+              <option value={1}>k₂ (Substrat-Nebenverlust)</option>
+              {fitResult.model === 'M1' && <option value={2}>k₃ (Produkt-Folgeverlust)</option>}
+            </select>
+
+            <button
+              type="button"
+              onClick={handleComputeProfile}
+              disabled={isProfiling}
+              className="primary-btn text-xs inline-flex items-center gap-1.5"
+            >
+              {isProfiling ? 'Berechne Profil...' : 'Profil-Likelihood berechnen'}
+            </button>
+          </div>
+
+          {profileResult && (
+            <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-800">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-semibold text-slate-200">
+                  Profil für {profileResult.paramName} (Bestwert: {profileResult.bestVal.toFixed(4)})
+                </span>
+                <span
+                  className={`text-[11px] px-2 py-0.5 rounded font-mono font-semibold ${
+                    profileResult.identifiable
+                      ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800'
+                      : 'bg-amber-950/80 text-amber-300 border border-amber-800'
+                  }`}
+                >
+                  {profileResult.identifiable
+                    ? '✓ Praktisch identifizierbar (beidseitig beschränkt)'
+                    : '⚠ Praktisch unvollständig identifizierbar (flaches Profil)'}
+                </span>
+              </div>
+
+              {/* SVG Profile Chart */}
+              <div className="w-full h-36 bg-slate-950 rounded border border-slate-800 relative mb-2 p-2">
+                <svg className="w-full h-full overflow-visible" viewBox="0 0 400 100" preserveAspectRatio="none">
+                  {/* Threshold line 3.84 */}
+                  {(() => {
+                    const maxChi = Math.max(10, ...profileResult.points.map((p) => p.deltaChi2));
+                    const yThresh = 90 - (3.84 / maxChi) * 80;
+                    const minX = profileResult.points[0].val;
+                    const maxX = profileResult.points[profileResult.points.length - 1].val;
+
+                    const pts = profileResult.points
+                      .map((p, idx) => {
+                        const x = 20 + ((p.val - minX) / (maxX - minX || 1)) * 360;
+                        const y = 90 - (Math.min(maxChi, p.deltaChi2) / maxChi) * 80;
+                        return `${x.toFixed(1)},${y.toFixed(1)}`;
+                      })
+                      .join(' ');
+
+                    return (
+                      <>
+                        <line
+                          x1="20"
+                          y1={yThresh}
+                          x2="380"
+                          y2={yThresh}
+                          stroke="#f59e0b"
+                          strokeDasharray="4 2"
+                          strokeWidth="1"
+                        />
+                        <text x="385" y={yThresh + 3} fill="#f59e0b" fontSize="8" fontFamily="monospace">
+                          95% (3.84)
+                        </text>
+                        <polyline fill="none" stroke="#38bdf8" strokeWidth="2" points={pts} />
+                        {profileResult.points.map((p, i) => {
+                          const x = 20 + ((p.val - minX) / (maxX - minX || 1)) * 360;
+                          const y = 90 - (Math.min(maxChi, p.deltaChi2) / maxChi) * 80;
+                          return (
+                            <circle
+                              key={i}
+                              cx={x}
+                              cy={y}
+                              r={p.val === profileResult.bestVal ? 4 : 2}
+                              fill={p.val === profileResult.bestVal ? '#10b981' : '#38bdf8'}
+                            />
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+                </svg>
+              </div>
+
+              <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                <span>Untere Grenze: {profileResult.points[0].val.toFixed(4)}</span>
+                <span className="text-emerald-400">Optimum: {profileResult.bestVal.toFixed(4)}</span>
+                <span>Obere Grenze: {profileResult.points[profileResult.points.length - 1].val.toFixed(4)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <details className="mt-4">
         <summary>Methode und Grenzen der Datenanpassung</summary>
         <p>
           Ungewichtete kleinste Quadrate, sechs Startpunkte und beschränkte Koordinatensuche im logarithmischen

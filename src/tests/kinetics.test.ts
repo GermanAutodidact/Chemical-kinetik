@@ -5,6 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { calculateSimpleModel } from '../utils/kinetics';
+import { calculateProfileLikelihood, exportToPEtab, parseCsvData } from '../utils/fit';
 import { SUBSTRATES } from '../data/substrates';
 import { SimpleModelParams } from '../types';
 
@@ -210,6 +211,34 @@ describe('M1 Analytic Kinetic Solver', () => {
         // Crossing must be a distinct numerical timestamp from peak tau
         expect(result.crossTau).not.toEqual(result.peakTau);
       }
+    });
+  });
+
+  describe('Identifiability & Open Standards (PEtab & Profile Likelihood)', () => {
+    const demoCsv =
+      't,S,P\n0.0,1.000,0.000\n0.5,0.730,0.228\n1.0,0.533,0.360\n1.5,0.389,0.428\n2.0,0.284,0.457\n2.5,0.207,0.461\n3.0,0.151,0.449\n3.5,0.110,0.428\n4.0,0.081,0.401\n4.5,0.059,0.372\n5.0,0.043,0.343\n5.5,0.031,0.315\n6.0,0.023,0.288';
+
+    it('generates valid PEtab TSV formatted tables', () => {
+      const rows = parseCsvData(demoCsv);
+      const petab = exportToPEtab(rows);
+
+      expect(petab.measurementsTsv).toContain('observableId\tsimulationConditionId\ttime\tmeasurement');
+      expect(petab.measurementsTsv).toContain('obs_P\tcond1\t0\t0');
+      expect(petab.parametersTsv).toContain('parameterId\tparameterScale\tlowerBound\tupperBound');
+      expect(petab.observablesTsv).toContain('observableId\tobservableFormula');
+    });
+
+    it('calculates 1D Profile Likelihood and evaluates practical identifiability', () => {
+      const rows = parseCsvData(demoCsv);
+      const bestRates = [0.5, 0.125, 0.075];
+      const prof = calculateProfileLikelihood(rows, 0, bestRates, 'M1', 11);
+
+      expect(prof.paramIndex).toBe(0);
+      expect(prof.thresholdChi2).toBe(3.84);
+      expect(prof.points.length).toBe(11);
+      // Best point should have lowest deltaChi2 close to 0
+      const bestPoint = prof.points.reduce((min, p) => (p.deltaChi2 < min.deltaChi2 ? p : min), prof.points[0]);
+      expect(bestPoint.deltaChi2).toBeLessThanOrEqual(0.1);
     });
   });
 });

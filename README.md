@@ -60,6 +60,8 @@ Open `http://localhost:8000`. Direct file opening is not supported because the U
 | Identifiability diagnostic | Singular values and numerical rank of output sensitivities | Not a proof of global/practical identifiability |
 | Scenario envelope | One-at-a-time ±20% parameter changes | Not a confidence interval |
 | Temperature matrix | 20/50/70/90 °C, missing values explicitly marked | Uncalibrated; no real predictions |
+| Data Fitting & PEtab | Bounded coordinate search on held-out data; PEtab TSV export | Client-side optimization, open science format |
+| Profile Likelihood | 1D parameter profile likelihood with Δχ² = 3.84 threshold (pyPESTO inspired) | Practical identifiability inspection |
 
 The [German research report](dist/bericht.md) contains the source review. [docs/ROADMAP.md](docs/ROADMAP.md) lists concrete unresolved tasks. [project.json](project.json) provides a machine-readable index. The UI is German; contributions may be German or English.
 

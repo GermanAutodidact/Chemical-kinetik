@@ -83,9 +83,21 @@ Changing J0 or the selected geometry changes the depletion time but not the fina
 Tests: `node tests-metal.mjs` checks both balances, the implicit solution, zero productivity, K=0, exact geometric limits, valid endpoint handling and rejected invalid inputs. No chemical validation is implied.
 
 
-## Data fitting (v0.4)
+## Data fitting (v0.4) & Identifiability (v0.5)
 
-CSV input t,S,P, 8–200 strictly increasing nonnegative times; S is optional, P required. Values are fractions [0,1]. The first floor(0.8*n) rows (minimum 5) train the M0 or M1 model; later rows are held out. Six starts and bounded coordinate search minimize unweighted squared residuals on available S and P observations. Optimizer uses log rates relative to the final time; bounds exp(-12)/tmax to exp(8)/tmax. M0 fixes k3=0. No global optimum guarantee. Search stops below log step 1e-5 or at 350 iterations per start. Similar-loss solutions satisfy loss <= best*1.02+1e-8; their range is not a confidence interval. Time units, declared data type and source are retained in the exported result. Inputs stay in the browser. Provenance is user-declared and unverified. No profile likelihood or measurement-noise estimation is performed.
+CSV input t,S,P, 8–200 strictly increasing nonnegative times; S is optional, P required. Values are fractions [0,1]. The first floor(0.8*n) rows (minimum 5) train the M0 or M1 model; later rows are held out. Six starts and bounded coordinate search minimize unweighted squared residuals on available S and P observations. Optimizer uses log rates relative to the final time; bounds exp(-12)/tmax to exp(8)/tmax. M0 fixes k3=0. No global optimum guarantee. Search stops below log step 1e-5 or at 350 iterations per start. Similar-loss solutions satisfy loss <= best*1.02+1e-8; their range is an illustrative heuristic, not a confidence interval. Time units, declared data type and source are retained in the exported result. Inputs stay in the browser. Provenance is user-declared and unverified.
+
+### Profile Likelihood & Open Science Integration (v0.5)
+
+Inspired by open-source systems biology tools (pyPESTO / Raue et al., 2009; PEtab; ChemPy):
+1. **Interactive 1D Profile Likelihood:** The browser client now implements an interactive profile likelihood calculation for target parameters (k1, k2, k3). By stepping theta_i on a log grid while re-optimizing the remaining parameters, Delta chi^2 = N * (loss - minLoss)/minLoss is computed against the 95% threshold of 3.84 (Wilks' theorem, 1-DOF). Profiles crossing 3.84 on both sides demonstrate practical identifiability for the dataset; flat profiles reveal practical or structural non-identifiabilities.
+2. **PEtab Standard Export (TSV):** Experimental data can be exported in standardized PEtab format (`measurements.tsv`, `parameters.tsv`, `observables.tsv`) for direct external validation in tools like pyPESTO, PEtab.jl, or AMICI.
+3. **Automated Stoichiometric Invariance (`python/models/reaction_system.py`):** Inspired by ChemPy, a formal stoichiometric network representation calculates the kernel of the stoichiometric matrix (c^T * N = 0) and formally proves that total molar mass closure (S + P + B + D = 1.0 for M1; S + I + P + B + D = 1.0 for M2) is preserved algebraically across all trajectories.
+
+### Explicitly Excluded Components (and Rationale)
+- **Heavy C++ runtime binaries (Cantera, SUNDIALS) in the client:** Excluded to preserve the zero-third-party-runtime-dependency rule in the browser and prevent multi-megabyte bundle penalties.
+- **Automated quantum-chemical DFT transition state searches:** Excluded as they require HPC cluster environments and atomic basis sets beyond browser/microservice capability.
+- **Substrate-specific dosing, synthesis recipes, or process optimizations:** Excluded for safety reasons and to maintain the platform's nature as an uncalibrated mathematical research workbench.
 
 Python comparison implementations in python/ preserve the same equations. M2 uses fixed RK4 with an exact shortened final step and explicit failure for nonfinite or negative states; compare using step refinement. Tests include an independent equal-rate sequential chain solution. All Python outputs remain hypothetical and dimensionless.
 

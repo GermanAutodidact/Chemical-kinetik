@@ -2,6 +2,20 @@ import numpy as np
 from models.model_m1 import simulate_m1
 from models.model_m2 import simulate_m2
 from models.model_m3 import simulate_m3
+from models.reaction_system import get_m1_network, get_m2_network
+
+# Stoichiometric invariant verification (ChemPy inspired)
+net_m1 = get_m1_network()
+t, S, P, side = simulate_m1(q=0.25, r=0.15)
+# In M1, side = B + D. We can check the total conservation
+inv_m1 = net_m1.find_invariants()
+assert len(inv_m1) == 1, "M1 must have exactly 1 conservation law (molar mass closure)"
+assert np.allclose(np.abs(inv_m1[0] / np.max(np.abs(inv_m1[0]))), [1, 1, 1, 1], atol=1e-8)
+
+net_m2 = get_m2_network()
+inv_m2 = net_m2.find_invariants()
+assert len(inv_m2) == 1, "M2 must have exactly 1 conservation law (molar mass closure S+I+P+B+D=const)"
+assert np.allclose(np.abs(inv_m2[0] / np.max(np.abs(inv_m2[0]))), [1, 1, 1, 1, 1], atol=1e-8)
 
 for q in (0,.25,2):
     for r in (0,.15,1+q,1+q+1e-9,3):
