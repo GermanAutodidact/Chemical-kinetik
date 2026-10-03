@@ -4,10 +4,10 @@
  */
 
 import React, { useState, useMemo, useRef } from 'react';
-import { AdvancedModelParams } from '../types';
+import { AdvancedModelParams, AdvancedModelResult } from '../types';
 import { calculateAdvancedModel } from '../utils/kinetics';
 import { exportJson, downloadFile } from '../utils/export';
-import { Download, Sliders, BarChart3 } from 'lucide-react';
+import { Download, Sliders, BarChart3, AlertTriangle, ShieldAlert, CheckCircle2, Thermometer, Info } from 'lucide-react';
 
 const DEFAULT_PARAMS: AdvancedModelParams = {
   a0: 1.0,
@@ -18,8 +18,20 @@ const DEFAULT_PARAMS: AdvancedModelParams = {
   r: 0.15,
 };
 
+interface ValidationResult {
+  hasFatalError: boolean;
+  errors: Record<string, string>;
+  warnings: Record<string, string>;
+  ratios: {
+    sideRatio: number;      // q / a0
+    lossRatio: number;      // r / u
+    transportRatio: number; // a0 / m
+  };
+}
+
 export const AdvancedModelSection: React.FC = () => {
   const [params, setParams] = useState<AdvancedModelParams>(DEFAULT_PARAMS);
+  const [temperature, setTemperature] = useState<number>(20);
   const [observe, setObserve] = useState<'product' | 'all'>('product');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [copiedNotification, setCopiedNotification] = useState(false);
@@ -37,9 +49,123 @@ export const AdvancedModelSection: React.FC = () => {
     envMax: number;
   } | null>(null);
 
+  // Comprehensive parameter and stoichiometric ratio validation
+  const validation = useMemo<ValidationResult>(() => {
+    const errors: Record<string, string> = {};
+    const warnings: Record<string, string> = {};
+
+    // 1. Check a0
+    if (!Number.isFinite(params.a0) || isNaN(params.a0)) {
+      errors.a0 = 'a₀ muss eine endliche Zahl sein.';
+    } else if (params.a0 <= 0) {
+      errors.a0 = 'Oberflächenaktivität a₀ muss strikt positiv (> 0) sein.';
+    } else if (params.a0 < 0.05) {
+      warnings.a0 = 'a₀ < 0,05: Sehr geringe Oberflächenaktivität; Umsetzung stark verlangsamt.';
+    } else if (params.a0 > 5.0) {
+      warnings.a0 = 'a₀ > 5,0: Sehr hohe Aktivität; außerhalb des empfohlenen Modellbereichs.';
+    }
+
+    // 2. Check lambda
+    if (!Number.isFinite(params.lambda) || isNaN(params.lambda)) {
+      errors.lambda = 'λ muss eine endliche Zahl sein.';
+    } else if (params.lambda < 0) {
+      errors.lambda = 'Deaktivierungsrate λ darf nicht negativ sein.';
+    } else if (params.lambda > 2.0) {
+      warnings.lambda = 'λ > 2,0: Sehr rasche Alterung; Katalysator verliert Aktivität fast sofort.';
+    }
+
+    // 3. Check m
+    if (!Number.isFinite(params.m) || isNaN(params.m)) {
+      errors.m = 'm muss eine endliche Zahl sein.';
+    } else if (params.m <= 0) {
+      errors.m = 'Transportkapazität m muss strikt positiv (> 0) sein.';
+    } else if (params.m < 0.05) {
+      warnings.m = 'm < 0,05: Extrem starke Diffusions- und Transporthemmung.';
+    } else if (params.m > 5.0) {
+      warnings.m = 'm > 5,0: Transportkapazität übersteigt typische Flüssigphasengrenzen.';
+    }
+
+    // 4. Check u
+    if (!Number.isFinite(params.u) || isNaN(params.u)) {
+      errors.u = 'u muss eine endliche Zahl sein.';
+    } else if (params.u <= 0) {
+      errors.u = 'Zwischenprodukt-Umsatz u muss strikt positiv (> 0) sein.';
+    } else if (params.u < 0.05) {
+      warnings.u = 'u < 0,05: Starke Stauung des Zwischenprodukts I.';
+    } else if (params.u > 5.0) {
+      warnings.u = 'u > 5,0: Extrem schneller Zwischenstufenumsatz (Quasi-Stationarität).';
+    }
+
+    // 5. Check q
+    if (!Number.isFinite(params.q) || isNaN(params.q)) {
+      errors.q = 'q muss eine endliche Zahl sein.';
+    } else if (params.q < 0) {
+      errors.q = 'Nebenroute q darf nicht negativ sein.';
+    } else if (params.q > 2.0) {
+      warnings.q = 'q > 2,0: Hohe Nebenreaktionsrate; verbraucht Großteil des Substrats.';
+    }
+
+    // 6. Check r
+    if (!Number.isFinite(params.r) || isNaN(params.r)) {
+      errors.r = 'r muss eine endliche Zahl sein.';
+    } else if (params.r < 0) {
+      errors.r = 'Produktverlust r darf nicht negativ sein.';
+    } else if (params.r > 2.0) {
+      warnings.r = 'r > 2,0: Hoher Folgeverlust; Produkt P wird rasch zersetzt.';
+    }
+
+    // 7. Check Temperature
+    if (!Number.isFinite(temperature) || isNaN(temperature)) {
+      errors.temperature = 'Temperatur muss eine endliche Zahl sein.';
+    } else if (temperature < -273.15) {
+      errors.temperature = 'Temperatur darf nicht unter dem absoluten Nullpunkt (−273,15 °C / 0 K) liegen.';
+    } else if (temperature < 0) {
+      warnings.temperature = 'Temperatur < 0 °C: Unterhalb des Gefrierpunkts wässriger Essigsäure; flüssige Reaktionsführung unwahrscheinlich.';
+    } else if (temperature > 100) {
+      warnings.temperature = 'Temperatur > 100 °C: Oberhalb des Siedepunkts von Wasser/Essigsäure; offenes Reaktionsgemisch siedet ab.';
+    }
+
+    // 8. Stoichiometric & Kinetic Ratios
+    const sideRatio = params.a0 > 0 ? params.q / params.a0 : 0;
+    const lossRatio = params.u > 0 ? params.r / params.u : 0;
+    const transportRatio = params.m > 0 ? params.a0 / params.m : 0;
+
+    if (sideRatio > 4.0) {
+      warnings.ratio_side = `Extremes Nebenreaktionsverhältnis (q/a₀ = ${sideRatio.toFixed(2)} > 4,0): Der Substrat-Nebenweg dominiert die Hauptaktivität; Produktbildung wird drastisch unterdrückt.`;
+    }
+    if (lossRatio > 4.0) {
+      warnings.ratio_loss = `Extremer Folgeverlust (r/u = ${lossRatio.toFixed(2)} > 4,0): Produktzerfall übertrifft Zwischenstufenbildung deutlich.`;
+    }
+    if (transportRatio > 8.0) {
+      warnings.ratio_transport = `Starke Diffusionslimitierung (a₀/m = ${transportRatio.toFixed(2)} > 8,0): Transportwiderstand begrenzt die Gesamtreaktion nahezu vollständig.`;
+    }
+
+    return {
+      hasFatalError: Object.keys(errors).length > 0,
+      errors,
+      warnings,
+      ratios: { sideRatio, lossRatio, transportRatio },
+    };
+  }, [params, temperature]);
+
+  const [lastValidResult, setLastValidResult] = useState<AdvancedModelResult>(() =>
+    calculateAdvancedModel(DEFAULT_PARAMS, 'product')
+  );
+
+  // Protect solver from out-of-range inputs
   const result = useMemo(() => {
-    return calculateAdvancedModel(params, observe);
-  }, [params, observe]);
+    if (validation.hasFatalError) {
+      return lastValidResult;
+    }
+    try {
+      const res = calculateAdvancedModel({ ...params, temperature_C: temperature }, observe);
+      setLastValidResult(res);
+      return res;
+    } catch (e) {
+      console.warn('M2 calculation error:', e);
+      return lastValidResult;
+    }
+  }, [params, temperature, observe, validation.hasFatalError]);
 
   const handleInputChange = (field: keyof AdvancedModelParams, valStr: string) => {
     setErrorMsg('');
@@ -55,8 +181,23 @@ export const AdvancedModelSection: React.FC = () => {
     setParams((prev) => ({ ...prev, [field]: val }));
   };
 
+  const handleTemperatureChange = (valStr: string) => {
+    setErrorMsg('');
+    const val = parseFloat(valStr);
+    if (isNaN(val)) {
+      setErrorMsg('Ungültige Temperaturangabe.');
+      return;
+    }
+    if (val < -273.15) {
+      setErrorMsg('Temperatur kann nicht unter −273,15 °C (0 K) liegen.');
+      return;
+    }
+    setTemperature(val);
+  };
+
   const handlePreset = (preset: 'default' | 'passivation' | 'transport' | 'stagnant') => {
     setErrorMsg('');
+    setTemperature(20);
     if (preset === 'default') {
       setParams(DEFAULT_PARAMS);
     } else if (preset === 'passivation') {
@@ -407,84 +548,208 @@ export const AdvancedModelSection: React.FC = () => {
       </p>
 
       <details open>
-        <summary>Sechs Modellannahmen einstellen</summary>
-        <div id="advanced-inputs">
-          <label>
-            Oberflächenaktivität a₀
+        <summary className="font-semibold text-slate-200">
+          Modellannahmen, Temperatur &amp; Plausibilitätsvalidierung
+        </summary>
+
+        {/* Input Validation & Fatal Error Banner */}
+        {validation.hasFatalError && (
+          <div className="mt-3 p-3 rounded-lg bg-rose-950/40 border border-rose-600/80 text-rose-200 text-xs flex items-start gap-2.5">
+            <ShieldAlert className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+            <div>
+              <strong className="block font-semibold text-rose-300 mb-1">
+                Unphysikalische oder ungültige Parameter blockiert:
+              </strong>
+              <ul className="list-disc pl-4 space-y-0.5 text-rose-300/90 font-mono text-[11px]">
+                {Object.entries(validation.errors).map(([key, msg]) => (
+                  <li key={key}>{msg}</li>
+                ))}
+              </ul>
+              <p className="mt-1 text-[11px] text-rose-400 italic">
+                Der M2-Löser wird mit diesen Parametern nicht ausgeführt, um numerische Singularitäten oder Abstürze zu verhindern. Die letzte valide Kurve bleibt sichtbar.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Physical Plausibility & Ratio Warnings Banner */}
+        {!validation.hasFatalError && Object.keys(validation.warnings).length > 0 && (
+          <div className="mt-3 p-3 rounded-lg bg-amber-950/30 border border-amber-600/60 text-amber-200 text-xs flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <strong className="block font-semibold text-amber-300 mb-1">
+                Physikochemische Plausibilitätshinweise:
+              </strong>
+              <ul className="list-disc pl-4 space-y-0.5 text-amber-200/90 text-[11px]">
+                {Object.entries(validation.warnings).map(([key, msg]) => (
+                  <li key={key}>{msg}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Stoichiometric & Transport Ratios Overview */}
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px] font-mono">
+          <div className={`p-2 rounded border ${validation.ratios.sideRatio > 4.0 ? 'bg-amber-950/30 border-amber-600/70 text-amber-300' : 'bg-slate-950 border-slate-800 text-slate-300'}`}>
+            <span className="text-slate-400 block text-[10px]">Nebenwegs-Verhältnis (q/a₀):</span>
+            <strong className="text-xs">{validation.ratios.sideRatio.toFixed(3)}</strong>
+            <span className="text-[10px] text-slate-500 block">Empfohlen: ≤ 2,0</span>
+          </div>
+          <div className={`p-2 rounded border ${validation.ratios.lossRatio > 4.0 ? 'bg-amber-950/30 border-amber-600/70 text-amber-300' : 'bg-slate-950 border-slate-800 text-slate-300'}`}>
+            <span className="text-slate-400 block text-[10px]">Produktverlust-Verhältnis (r/u):</span>
+            <strong className="text-xs">{validation.ratios.lossRatio.toFixed(3)}</strong>
+            <span className="text-[10px] text-slate-500 block">Empfohlen: ≤ 2,0</span>
+          </div>
+          <div className={`p-2 rounded border ${validation.ratios.transportRatio > 8.0 ? 'bg-amber-950/30 border-amber-600/70 text-amber-300' : 'bg-slate-950 border-slate-800 text-slate-300'}`}>
+            <span className="text-slate-400 block text-[10px]">Oberfläche/Transport (a₀/m):</span>
+            <strong className="text-xs">{validation.ratios.transportRatio.toFixed(3)}</strong>
+            <span className="text-[10px] text-slate-500 block">Empfohlen: 0,1 – 5,0</span>
+          </div>
+        </div>
+
+        <div id="advanced-inputs" className="mt-4">
+          <label className={`relative ${validation.errors.a0 ? 'text-rose-400' : validation.warnings.a0 ? 'text-amber-300' : ''}`}>
+            <div className="flex items-center justify-between">
+              <span>Oberflächenaktivität a₀</span>
+              <span className="text-[10px] font-mono text-slate-500">[0,05 – 5,0]</span>
+            </div>
             <input
               type="number"
-              min="0.05"
-              max="5"
+              min="0.01"
+              max="10"
               step="0.01"
               id="adv-a0"
               value={params.a0}
               onChange={(e) => handleInputChange('a0', e.target.value)}
+              className={validation.errors.a0 ? 'border-rose-500 bg-rose-950/20' : validation.warnings.a0 ? 'border-amber-500' : ''}
             />
+            {validation.errors.a0 && <span className="text-[10px] text-rose-400 block mt-0.5">{validation.errors.a0}</span>}
           </label>
-          <label>
-            Deaktivierung λ
+
+          <label className={`relative ${validation.errors.lambda ? 'text-rose-400' : validation.warnings.lambda ? 'text-amber-300' : ''}`}>
+            <div className="flex items-center justify-between">
+              <span>Deaktivierung λ</span>
+              <span className="text-[10px] font-mono text-slate-500">[0 – 2,0]</span>
+            </div>
             <input
               type="number"
               min="0"
-              max="2"
+              max="5"
               step="0.01"
               id="adv-lambda"
               value={params.lambda}
               onChange={(e) => handleInputChange('lambda', e.target.value)}
+              className={validation.errors.lambda ? 'border-rose-500 bg-rose-950/20' : validation.warnings.lambda ? 'border-amber-500' : ''}
             />
+            {validation.errors.lambda && <span className="text-[10px] text-rose-400 block mt-0.5">{validation.errors.lambda}</span>}
           </label>
-          <label>
-            Transportkapazität m
+
+          <label className={`relative ${validation.errors.m ? 'text-rose-400' : validation.warnings.m ? 'text-amber-300' : ''}`}>
+            <div className="flex items-center justify-between">
+              <span>Transportkapazität m</span>
+              <span className="text-[10px] font-mono text-slate-500">[0,05 – 5,0]</span>
+            </div>
             <input
               type="number"
-              min="0.05"
-              max="5"
+              min="0.01"
+              max="10"
               step="0.01"
               id="adv-m"
               value={params.m}
               onChange={(e) => handleInputChange('m', e.target.value)}
+              className={validation.errors.m ? 'border-rose-500 bg-rose-950/20' : validation.warnings.m ? 'border-amber-500' : ''}
             />
+            {validation.errors.m && <span className="text-[10px] text-rose-400 block mt-0.5">{validation.errors.m}</span>}
           </label>
-          <label>
-            Zwischenprodukt-Umsatz u
+
+          <label className={`relative ${validation.errors.u ? 'text-rose-400' : validation.warnings.u ? 'text-amber-300' : ''}`}>
+            <div className="flex items-center justify-between">
+              <span>Zwischenprodukt-Umsatz u</span>
+              <span className="text-[10px] font-mono text-slate-500">[0,05 – 5,0]</span>
+            </div>
             <input
               type="number"
-              min="0.05"
-              max="5"
+              min="0.01"
+              max="10"
               step="0.01"
               id="adv-u"
               value={params.u}
               onChange={(e) => handleInputChange('u', e.target.value)}
+              className={validation.errors.u ? 'border-rose-500 bg-rose-950/20' : validation.warnings.u ? 'border-amber-500' : ''}
             />
+            {validation.errors.u && <span className="text-[10px] text-rose-400 block mt-0.5">{validation.errors.u}</span>}
           </label>
-          <label>
-            Nebenroute q
+
+          <label className={`relative ${validation.errors.q ? 'text-rose-400' : validation.warnings.q ? 'text-amber-300' : ''}`}>
+            <div className="flex items-center justify-between">
+              <span>Nebenroute q</span>
+              <span className="text-[10px] font-mono text-slate-500">[0 – 2,0]</span>
+            </div>
             <input
               type="number"
               min="0"
-              max="2"
+              max="5"
               step="0.01"
               id="adv-q"
               value={params.q}
               onChange={(e) => handleInputChange('q', e.target.value)}
+              className={validation.errors.q ? 'border-rose-500 bg-rose-950/20' : validation.warnings.q ? 'border-amber-500' : ''}
             />
+            {validation.errors.q && <span className="text-[10px] text-rose-400 block mt-0.5">{validation.errors.q}</span>}
           </label>
-          <label>
-            Produktverlust r
+
+          <label className={`relative ${validation.errors.r ? 'text-rose-400' : validation.warnings.r ? 'text-amber-300' : ''}`}>
+            <div className="flex items-center justify-between">
+              <span>Produktverlust r</span>
+              <span className="text-[10px] font-mono text-slate-500">[0 – 2,0]</span>
+            </div>
             <input
               type="number"
               min="0"
-              max="2"
+              max="5"
               step="0.01"
               id="adv-r"
               value={params.r}
               onChange={(e) => handleInputChange('r', e.target.value)}
+              className={validation.errors.r ? 'border-rose-500 bg-rose-950/20' : validation.warnings.r ? 'border-amber-500' : ''}
             />
+            {validation.errors.r && <span className="text-[10px] text-rose-400 block mt-0.5">{validation.errors.r}</span>}
+          </label>
+
+          {/* Reaction Temperature Input with Kelvin translation & absolute zero validation */}
+          <label className={`relative ${validation.errors.temperature ? 'text-rose-400' : validation.warnings.temperature ? 'text-amber-300' : ''}`}>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <Thermometer className="w-3.5 h-3.5 text-sky-400" />
+                Reaktionstemperatur T
+              </span>
+              <span className="text-[10px] font-mono text-sky-300">
+                {(temperature + 273.15).toFixed(1)} K
+              </span>
+            </div>
+            <input
+              type="number"
+              min="-273.15"
+              max="150"
+              step="1"
+              id="adv-temp"
+              value={temperature}
+              onChange={(e) => handleTemperatureChange(e.target.value)}
+              className={validation.errors.temperature ? 'border-rose-500 bg-rose-950/20' : validation.warnings.temperature ? 'border-amber-500' : ''}
+            />
+            {validation.errors.temperature ? (
+              <span className="text-[10px] text-rose-400 block mt-0.5">{validation.errors.temperature}</span>
+            ) : validation.warnings.temperature ? (
+              <span className="text-[10px] text-amber-300 block mt-0.5">{validation.warnings.temperature}</span>
+            ) : (
+              <span className="text-[10px] text-slate-500 block mt-0.5">Bereich: 0 – 100 °C (flüssiges Gemisch)</span>
+            )}
           </label>
         </div>
 
         {errorMsg && (
-          <p id="advanced-error" role="alert">
+          <p id="advanced-error" role="alert" className="text-xs text-rose-400 mt-2 font-mono">
             {errorMsg}
           </p>
         )}

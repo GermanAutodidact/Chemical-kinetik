@@ -85,6 +85,7 @@ export interface AdvancedModelParams {
   u: number;      // Intermediate conversion rate (0.05 - 5.0)
   q: number;      // Side route rate (0 - 2.0)
   r: number;      // Product loss rate (0 - 2.0)
+  temperature_C?: number; // Optional reaction temperature in °C (must be >= -273.15 °C)
 }
 
 export interface AdvancedPoint {
@@ -97,9 +98,11 @@ export interface AdvancedPoint {
   envMax: number;
 }
 
+export type KineticParamKey = 'a0' | 'lambda' | 'm' | 'u' | 'q' | 'r';
+
 export interface SensitivityRow {
   name: string;
-  key: keyof AdvancedModelParams;
+  key: KineticParamKey;
   rms: number;
   classification: string;
 }

@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { calculateSimpleModel } from '../utils/kinetics';
+import { calculateSimpleModel, calculateAdvancedModel } from '../utils/kinetics';
 import { calculateProfileLikelihood, exportToPEtab, parseCsvData } from '../utils/fit';
 import { SUBSTRATES } from '../data/substrates';
 import { SimpleModelParams } from '../types';
@@ -239,6 +239,65 @@ describe('M1 Analytic Kinetic Solver', () => {
       // Best point should have lowest deltaChi2 close to 0
       const bestPoint = prof.points.reduce((min, p) => (p.deltaChi2 < min.deltaChi2 ? p : min), prof.points[0]);
       expect(bestPoint.deltaChi2).toBeLessThanOrEqual(0.1);
+    });
+  });
+
+  describe('M2 Advanced Solver Parameter & Boundary Protection', () => {
+    it('accepts valid default parameters and maintains mass balance', () => {
+      const res = calculateAdvancedModel({
+        a0: 1.0,
+        lambda: 0.15,
+        m: 1.0,
+        u: 1.0,
+        q: 0.25,
+        r: 0.15,
+        temperature_C: 25,
+      });
+
+      expect(res.points.length).toBeGreaterThan(0);
+      for (const pt of res.points) {
+        expect(pt.S + pt.I + pt.P + pt.BD).toBeCloseTo(100.0, 5);
+        expect(pt.S).toBeGreaterThanOrEqual(-1e-6);
+        expect(pt.P).toBeGreaterThanOrEqual(-1e-6);
+      }
+    });
+
+    it('rejects sub-absolute-zero temperature (< -273.15 °C)', () => {
+      expect(() =>
+        calculateAdvancedModel({
+          a0: 1.0,
+          lambda: 0.15,
+          m: 1.0,
+          u: 1.0,
+          q: 0.25,
+          r: 0.15,
+          temperature_C: -300,
+        })
+      ).toThrowError(/absoluten Nullpunkt/);
+    });
+
+    it('rejects zero or negative surface activity a0 and transport m', () => {
+      expect(() =>
+        calculateAdvancedModel({
+          a0: 0,
+          lambda: 0.15,
+          m: 1.0,
+          u: 1.0,
+          q: 0.25,
+          r: 0.15,
+        })
+      ).toThrowError(/positiv sein/);
+
+      expect(() =>
+        calculateAdvancedModel({
+          a0: 1.0,
+          lambda: 0.15,
+          m: -0.5,
+          u: 1.0,
+          q: 0.25,
+          r: 0.15,
+        })
+      ).toThrowError(/Ungültiger Parameter/);
     });
   });
 });

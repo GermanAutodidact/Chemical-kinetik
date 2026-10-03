@@ -14,6 +14,7 @@ import {
   AdvancedModelResult,
   AdvancedPoint,
   SensitivityRow,
+  KineticParamKey,
 } from '../types';
 
 /**
@@ -373,6 +374,9 @@ function integrateM2(
     if (!Number.isFinite(p[k]) || p[k] < 0) throw new Error('Ungültiger Parameter ' + k);
   }
   if (p.a0 === 0 || p.m === 0) throw new Error('Oberflächen- und Transportparameter müssen positiv sein');
+  if (p.temperature_C !== undefined && (!Number.isFinite(p.temperature_C) || p.temperature_C < -273.15)) {
+    throw new Error('Temperatur darf nicht unter dem absoluten Nullpunkt (−273,15 °C) liegen');
+  }
 
   const numGrid = Math.round(tauEnd / 0.05);
   const rows: { tau: number; S: number; I: number; P: number; B: number; D: number }[] = [];
@@ -410,7 +414,7 @@ export function calculateAdvancedModel(
   }
 
   // Envelope calculation: +/-20% for each of the 6 parameters
-  const paramKeys: (keyof AdvancedModelParams)[] = ['a0', 'lambda', 'm', 'u', 'q', 'r'];
+  const paramKeys: KineticParamKey[] = ['a0', 'lambda', 'm', 'u', 'q', 'r'];
   const pCurves: number[][] = [];
 
   for (const key of paramKeys) {
@@ -520,7 +524,7 @@ export function calculateAdvancedModel(
     return vec;
   };
 
-  const paramNames: Record<keyof AdvancedModelParams, string> = {
+  const paramNames: Record<KineticParamKey, string> = {
     a0: 'Oberflächenaktivität a₀',
     u: 'Zwischenprodukt-Umsatz u',
     m: 'Transportkapazität m',
@@ -583,7 +587,7 @@ export function calculateAdvancedModel(
   let bestP1 = '';
   let bestP2 = '';
 
-  const shortKeys: Record<keyof AdvancedModelParams, string> = {
+  const shortKeys: Record<KineticParamKey, string> = {
     a0: 'a₀',
     lambda: 'λ',
     m: 'm',
