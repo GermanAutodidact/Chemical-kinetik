@@ -407,7 +407,7 @@ export function calculateAdvancedModel(
   const dense = integrateM2(params, tauEnd, dt);
 
   // Subsample to 121 points (0.05 step)
-  const sampleStride = 10; // 0.005 * 10 = 0.05
+  const sampleStride = 1; // integrateM2 already returns the 0.05 output grid
   const grid: { tau: number; S: number; I: number; P: number; B: number; D: number }[] = [];
   for (let i = 0; i < dense.length; i += sampleStride) {
     grid.push(dense[i]);
@@ -465,6 +465,18 @@ export function calculateAdvancedModel(
     }
   }
 
+  // Refine every detected positive-to-negative product slope crossing.
+  for (let i = 1; i < grid.length; i++) {
+    const left = grid[i - 1], right = grid[i];
+    const initial = [left.S, left.I, left.P, left.B, left.D];
+    const slope = (t: number) => m2Rhs(t, integrateAdaptive((tt, yy) => m2Rhs(tt, yy, params), left.tau, initial, t), params)[2];
+    if (slope(left.tau) > 0 && slope(right.tau) < 0) {
+      const root = bisectEvent(slope, left.tau, right.tau);
+      const peak = integrateAdaptive((tt, yy) => m2Rhs(tt, yy, params), left.tau, initial, root)[2] * 100;
+      if (peak > maxP) { maxP = peak; maxTau = root; }
+    }
+  }
+
   // Is interior peak or edge?
   const isInteriorPeak = maxTau > 0 && maxTau < tauEnd - 0.05;
 
@@ -489,7 +501,7 @@ export function calculateAdvancedModel(
         const yState = integrateAdaptive(
           (t, y) => m2Rhs(t, y, params),
           aPt.tau,
-          [aPt.S / 100, aPt.I / 100, aPt.P / 100, aPt.B / 100, aPt.D / 100],
+          [aPt.S, aPt.I, aPt.P, aPt.B, aPt.D],
           timeVal
         );
         const aT = params.a0 * Math.exp(-params.lambda * timeVal);
@@ -514,7 +526,7 @@ export function calculateAdvancedModel(
     const d = integrateM2(p, tauEnd, dt);
     const vec: number[] = [];
     for (const t of obsTaus) {
-      const idx = Math.min(d.length - 1, Math.round(t / dt));
+      const idx = Math.min(d.length - 1, Math.round(t / 0.05));
       if (observe === 'product') {
         vec.push(d[idx].P);
       } else {
@@ -543,7 +555,7 @@ export function calculateAdvancedModel(
     let pMinus: AdvancedModelParams;
 
     if (val === 0) {
-      pPlus = { ...params, [key]: 0.001 };
+      pPlus = { ...params, [key]: 0 };
       pMinus = { ...params, [key]: 0 };
     } else {
       pPlus = { ...params, [key]: val * Math.exp(deltaLog) };

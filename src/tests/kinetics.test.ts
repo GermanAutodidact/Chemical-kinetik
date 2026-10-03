@@ -10,7 +10,7 @@ import { SUBSTRATES } from '../data/substrates';
 import { SimpleModelParams } from '../types';
 
 describe('M1 Analytic Kinetic Solver', () => {
-  // Test parameters representing nitrostyrene and 1-phenyl-2-nitropropene reaction conditions
+  // Test parameters representing nitrostyrene and 1-phenyl-2-nitropropene illustrative model scenarios
   const nitrostyrenePresets: { name: string; params: SimpleModelParams }[] = [
     { name: 'Standard β-Nitrostyrol Default', params: { q: 0.25, r: 0.15 } },
     { name: 'Ideal Low-Loss Nitrostyrene', params: { q: 0.05, r: 0.05 } },
@@ -18,9 +18,9 @@ describe('M1 Analytic Kinetic Solver', () => {
   ];
 
   const nitropropenePresets: { name: string; params: SimpleModelParams }[] = [
-    { name: 'P2NP Slower Hydrogenation / Ketoxime Accumulation', params: { q: 0.35, r: 0.40 } },
-    { name: 'P2NP Steric Side-Route Dominance', params: { q: 0.85, r: 0.10 } },
-    { name: 'P2NP Acid-Hydrolysis Loss Pathway', params: { q: 0.45, r: 0.65 } },
+    { name: 'Hypothetical scenario A', params: { q: 0.35, r: 0.40 } },
+    { name: 'Hypothetical scenario B', params: { q: 0.85, r: 0.10 } },
+    { name: 'Hypothetical scenario C', params: { q: 0.45, r: 0.65 } },
   ];
 
   describe('Substrate Metadata Verification', () => {
@@ -299,5 +299,17 @@ describe('M1 Analytic Kinetic Solver', () => {
         })
       ).toThrowError(/Ungültiger Parameter/);
     });
+  });
+});
+
+describe('M2 output and metadata regression checks', () => {
+  const p={a0:1,lambda:0,m:1,u:1,q:0,r:0};
+  it('keeps 121 output points and agrees with the analytic equal-rate sequential chain', () => {
+    const result=calculateAdvancedModel(p);
+    expect(result.points.length).toBe(121);
+    for(const row of result.points){const s=Math.exp(-.5*row.tau),i=.5*row.tau*s;expect(row.P/100).toBeCloseTo(1-s-i,7);}
+  });
+  it('temperature is explicitly metadata and does not change an uncalibrated trajectory', () => {
+    expect(calculateAdvancedModel({...p,temperature_C:20}).points).toEqual(calculateAdvancedModel({...p,temperature_C:90}).points);
   });
 });

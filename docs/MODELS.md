@@ -53,7 +53,7 @@ Central derivative ∂output/∂ln θ via θ×exp(±0.001). Outputs are either P
 
 Singular values are obtained by one-sided Jacobi SVD on J itself (at most 100 sweeps, relative column-orthogonality threshold 1e-14), without forming JᵀJ. Numerical rank counts values above 1e-5 of the largest. This remains a floating-point local diagnostic, not a global proof.
 
-The most similar parameter pair is selected by maximum absolute cosine similarity of nonzero sensitivity columns. This is not a parameter-correlation estimate. A full numerical rank neither proves global structural identifiability nor establishes practical identifiability from noisy observations. No observation-noise weighting, Fisher-based confidence intervals or profile-likelihood calculation is implemented.
+The most similar parameter pair is selected by maximum absolute cosine similarity of nonzero sensitivity columns. This is not a parameter-correlation estimate. A full numerical rank neither proves global structural identifiability nor establishes practical identifiability from noisy observations. No verified observation-noise weighting or calibrated confidence intervals are implemented. A heuristic loss profile is described below.
 
 ### Exact ambiguity
 
@@ -89,10 +89,7 @@ CSV input t,S,P, 8–200 strictly increasing nonnegative times; S is optional, P
 
 ### Profile Likelihood & Open Science Integration (v0.5)
 
-Inspired by open-source systems biology tools (pyPESTO / Raue et al., 2009; PEtab; ChemPy):
-1. **Interactive 1D Profile Likelihood:** The browser client now implements an interactive profile likelihood calculation for target parameters (k1, k2, k3). By stepping theta_i on a log grid while re-optimizing the remaining parameters, Delta chi^2 = N * (loss - minLoss)/minLoss is computed against the 95% threshold of 3.84 (Wilks' theorem, 1-DOF). Profiles crossing 3.84 on both sides demonstrate practical identifiability for the dataset; flat profiles reveal practical or structural non-identifiabilities.
-2. **PEtab Standard Export (TSV):** Experimental data can be exported in standardized PEtab format (`measurements.tsv`, `parameters.tsv`, `observables.tsv`) for direct external validation in tools like pyPESTO, PEtab.jl, or AMICI.
-3. **Automated Stoichiometric Invariance (`python/models/reaction_system.py`):** Inspired by ChemPy, a formal stoichiometric network representation calculates the kernel of the stoichiometric matrix (c^T * N = 0) and formally proves that total molar mass closure (S + P + B + D = 1.0 for M1; S + I + P + B + D = 1.0 for M2) is preserved algebraically across all trajectories.
+The browser reoptimizes other rates on a grid of one fixed rate. Its normalized residual score is a heuristic with reference line 3.84. Measurement noise and asymptotic assumptions have not been validated; the profile does not prove identifiability or supply calibrated confidence intervals. PEtab exports are incomplete table drafts; noise=0.05 is assumed, and model, condition and YAML files must be supplied and independently checked. Algebraic conservation refers to normalized model pools, not verified molecular mass closure.
 
 ### Explicitly Excluded Components (and Rationale)
 - **Heavy C++ runtime binaries (Cantera, SUNDIALS) in the client:** Excluded to preserve the zero-third-party-runtime-dependency rule in the browser and prevent multi-megabyte bundle penalties.
@@ -133,3 +130,5 @@ npm test
 | **Substrate Parameter Sets** | Robustness across distinct chemical regimes | Preserved across $\beta$-Nitrostyrol (fast reduction, low ketoxime accumulation) and P2NP (steric hindrance, ketoxime stability, hydrolysis losses) | Proves that the solver is robust under disparate kinetic ratios without crashing or losing precision. |
 | **Peak vs. Side Rate Crossing** | Distinction between optimum yield and side-reaction takeover | $\tau_{\text{peak}} = \frac{\ln(K/r)}{K-r}$; $\tau_{\text{cross}}$ solves $(1-q)S = rP$; $\tau_{\text{cross}} \neq \tau_{\text{peak}}$ | Confusing product maximum with side-rate crossing leads to false process interpretations. |
 
+
+Version 0.6.0 corrects duplicate output subsampling and sensitivity indexing in React M2. All 121 output points are retained. Crossing reintegration starts from fractions, not percent-scaled values. The browser refines detected product maxima. A zero parameter remains zero under logarithmic variation. Temperature metadata does not scale rates.

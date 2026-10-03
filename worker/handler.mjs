@@ -1,5 +1,5 @@
 import {mcp} from './mcp.mjs';
-const VERSION='0.5.0';
+const VERSION='0.6.0';
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,HEAD,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type','X-Content-Type-Options':'nosniff'};
 const json=(data,status=200,extra={})=>new Response(JSON.stringify(data),{status,headers:{...cors,'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',...extra}});
 function db(env){if(!env.DB)throw new Error('Storage unavailable');return env.DB;}

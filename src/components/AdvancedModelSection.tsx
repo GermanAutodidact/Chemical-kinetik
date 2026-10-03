@@ -82,7 +82,7 @@ export const AdvancedModelSection: React.FC = () => {
     } else if (params.m < 0.05) {
       warnings.m = 'm < 0,05: Extrem starke Diffusions- und Transporthemmung.';
     } else if (params.m > 5.0) {
-      warnings.m = 'm > 5,0: Transportkapazität übersteigt typische Flüssigphasengrenzen.';
+      warnings.m = 'm > 5,0: außerhalb des ursprünglichen illustrativen UI-Bereichs.';
     }
 
     // 4. Check u
@@ -120,9 +120,9 @@ export const AdvancedModelSection: React.FC = () => {
     } else if (temperature < -273.15) {
       errors.temperature = 'Temperatur darf nicht unter dem absoluten Nullpunkt (−273,15 °C / 0 K) liegen.';
     } else if (temperature < 0) {
-      warnings.temperature = 'Temperatur < 0 °C: Unterhalb des Gefrierpunkts wässriger Essigsäure; flüssige Reaktionsführung unwahrscheinlich.';
+      warnings.temperature = 'Temperatur ist nur Metadatum; dieses Modell berechnet keine Phasengrenzen.';
     } else if (temperature > 100) {
-      warnings.temperature = 'Temperatur > 100 °C: Oberhalb des Siedepunkts von Wasser/Essigsäure; offenes Reaktionsgemisch siedet ab.';
+      warnings.temperature = 'Temperatur ist nur Metadatum; dieses Modell enthält keine Wärmebilanz.';
     }
 
     // 8. Stoichiometric & Kinetic Ratios
@@ -148,22 +148,20 @@ export const AdvancedModelSection: React.FC = () => {
     };
   }, [params, temperature]);
 
-  const [lastValidResult, setLastValidResult] = useState<AdvancedModelResult>(() =>
-    calculateAdvancedModel(DEFAULT_PARAMS, 'product')
-  );
+  const lastValidResult = useRef<AdvancedModelResult>(calculateAdvancedModel(DEFAULT_PARAMS, 'product'));
 
   // Protect solver from out-of-range inputs
   const result = useMemo(() => {
     if (validation.hasFatalError) {
-      return lastValidResult;
+      return lastValidResult.current;
     }
     try {
       const res = calculateAdvancedModel({ ...params, temperature_C: temperature }, observe);
-      setLastValidResult(res);
+      lastValidResult.current = res;
       return res;
     } catch (e) {
       console.warn('M2 calculation error:', e);
-      return lastValidResult;
+      return lastValidResult.current;
     }
   }, [params, temperature, observe, validation.hasFatalError]);
 
@@ -548,6 +546,7 @@ export const AdvancedModelSection: React.FC = () => {
       </p>
 
       <details open>
+        <p>Die Temperaturangabe verändert die dimensionslosen M2-Kurven nicht. Temperaturabhängige Raten sind hier nicht kalibriert.</p>
         <summary className="font-semibold text-slate-200">
           Modellannahmen, Temperatur &amp; Plausibilitätsvalidierung
         </summary>
@@ -594,17 +593,17 @@ export const AdvancedModelSection: React.FC = () => {
           <div className={`p-2 rounded border ${validation.ratios.sideRatio > 4.0 ? 'bg-amber-950/30 border-amber-600/70 text-amber-300' : 'bg-slate-950 border-slate-800 text-slate-300'}`}>
             <span className="text-slate-400 block text-[10px]">Nebenwegs-Verhältnis (q/a₀):</span>
             <strong className="text-xs">{validation.ratios.sideRatio.toFixed(3)}</strong>
-            <span className="text-[10px] text-slate-500 block">Empfohlen: ≤ 2,0</span>
+            <span className="text-[10px] text-slate-500 block">Illustrativer Quotient</span>
           </div>
           <div className={`p-2 rounded border ${validation.ratios.lossRatio > 4.0 ? 'bg-amber-950/30 border-amber-600/70 text-amber-300' : 'bg-slate-950 border-slate-800 text-slate-300'}`}>
             <span className="text-slate-400 block text-[10px]">Produktverlust-Verhältnis (r/u):</span>
             <strong className="text-xs">{validation.ratios.lossRatio.toFixed(3)}</strong>
-            <span className="text-[10px] text-slate-500 block">Empfohlen: ≤ 2,0</span>
+            <span className="text-[10px] text-slate-500 block">Illustrativer Quotient</span>
           </div>
           <div className={`p-2 rounded border ${validation.ratios.transportRatio > 8.0 ? 'bg-amber-950/30 border-amber-600/70 text-amber-300' : 'bg-slate-950 border-slate-800 text-slate-300'}`}>
             <span className="text-slate-400 block text-[10px]">Oberfläche/Transport (a₀/m):</span>
             <strong className="text-xs">{validation.ratios.transportRatio.toFixed(3)}</strong>
-            <span className="text-[10px] text-slate-500 block">Empfohlen: 0,1 – 5,0</span>
+            <span className="text-[10px] text-slate-500 block">Illustrativer Quotient</span>
           </div>
         </div>
 
@@ -722,7 +721,7 @@ export const AdvancedModelSection: React.FC = () => {
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1">
                 <Thermometer className="w-3.5 h-3.5 text-sky-400" />
-                Reaktionstemperatur T
+                Temperaturangabe (Metadatum)
               </span>
               <span className="text-[10px] font-mono text-sky-300">
                 {(temperature + 273.15).toFixed(1)} K

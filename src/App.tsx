@@ -35,10 +35,10 @@ export default function App() {
         {/* Intro */}
         <div className="intro">
           <div>
-            <span className="eyebrow">{info.eyebrowText}</span>
+            <span className="eyebrow">KINETIK · MODELLVERGLEICH · EVIDENZ</span>
             <h1>Was lässt sich wirklich berechnen?</h1>
             <p>
-              {info.name} → {info.productName} · Aluminiumamalgam · Essigsäure · Wasser
+              Abstrakte Modelle, Datenvergleich und beschreibender Stoffvergleich. Keine stoffbezogene Reaktionsprognose.
             </p>
           </div>
           <span
@@ -57,7 +57,7 @@ export default function App() {
 
         {/* 2. Chemical Pathways with 2D Vector Structures */}
         <div id="reaktionspfade">
-          <ChemicalReactionViewer substrate={substrate} />
+          <p>Die Stoffauswahl betrifft ausschließlich den beschreibenden Vergleich. Die Modelle darunter verwenden unabhängige hypothetische Parameter.</p>
         </div>
 
         {/* Navigation */}

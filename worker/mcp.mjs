@@ -8,13 +8,13 @@ const mcpTools=[
  {name:'pea_arrhenius',description:'Hypothetical Arrhenius rate acceleration k(T)/k(20°C); uncalibrated, no thermal stability or runaway prediction.',inputSchema:{type:'object',properties:{Ea_kJ:{type:'number',minimum:10,maximum:200,default:55}},additionalProperties:false},annotations:{readOnlyHint:true}}
 ];
 export async function mcp(request){
- if(request.method==='GET')return new Response(JSON.stringify({endpoint:'/mcp',transport:'stateless Streamable HTTP',protocolVersion:'2024-11-05',serverInfo:{name:'pea-kinetics-mcp-server',version:'0.5.0'},tools:mcpTools}),{headers:{'Content-Type':'application/json'}});
+ if(request.method==='GET')return new Response(JSON.stringify({endpoint:'/mcp',transport:'stateless Streamable HTTP',protocolVersion:'2024-11-05',serverInfo:{name:'pea-kinetics-mcp-server',version:'0.6.0'},tools:mcpTools}),{headers:{'Content-Type':'application/json'}});
  if(request.method!=='POST')return new Response(null,{status:405,headers:{Allow:'POST'}});
  const content=await request.text();if(content.length>12000)return new Response(null,{status:413});
  let x;try{x=JSON.parse(content);}catch{return mcpReply(null,null,{code:-32700,message:'Parse error'});}
  if(!x||x.jsonrpc!=='2.0'||typeof x.method!=='string')return mcpReply(x?.id??null,null,{code:-32600,message:'Invalid request'});
  if(x.method.startsWith('notifications/'))return new Response(null,{status:202});
- if(x.method==='initialize')return mcpReply(x.id,{protocolVersion:'2024-11-05',capabilities:{tools:{}},serverInfo:{name:'pea-kinetics-mcp-server',version:'0.5.0'}});
+ if(x.method==='initialize')return mcpReply(x.id,{protocolVersion:'2024-11-05',capabilities:{tools:{}},serverInfo:{name:'pea-kinetics-mcp-server',version:'0.6.0'}});
  if(x.method==='ping')return mcpReply(x.id,{});
  if(x.method==='tools/list')return mcpReply(x.id,{tools:mcpTools});
  if(x.method!=='tools/call')return mcpReply(x.id,null,{code:-32601,message:'Method not found'});

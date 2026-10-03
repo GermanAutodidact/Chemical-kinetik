@@ -14,7 +14,7 @@
 
 ## Run and verify
 
-Requirements: Node.js 22+ for tests; a modern browser; any local static HTTP server. Client models require no dependencies. The publishing build uses Drizzle to generate D1 migrations; public suggestions require the deployed Worker and D1.
+Requirements: Node.js 22+ for tests; a modern browser; any local static HTTP server. Client models require no dependencies. Versioned D1 migrations are included; The Work/Sites edition uses a deployed Worker and D1. The optional Express edition requires a verified persistent SQLite volume in Cloud Run.
 
 ```sh
 # 1. Run Vitest TypeScript unit test suite (M1 solver, mass balance, edge cases)
@@ -60,8 +60,8 @@ Open `http://localhost:8000`. Direct file opening is not supported because the U
 | Identifiability diagnostic | Singular values and numerical rank of output sensitivities | Not a proof of global/practical identifiability |
 | Scenario envelope | One-at-a-time ±20% parameter changes | Not a confidence interval |
 | Temperature matrix | 20/50/70/90 °C, missing values explicitly marked | Uncalibrated; no real predictions |
-| Data Fitting & PEtab | Bounded coordinate search on held-out data; PEtab TSV export | Client-side optimization, open science format |
-| Profile Likelihood | 1D parameter profile likelihood with Δχ² = 3.84 threshold (pyPESTO inspired) | Practical identifiability inspection |
+| Data Fitting & PEtab | Bounded coordinate search on held-out data; PEtab TSV export | Client-side optimization; incomplete PEtab table draft |
+| Profile Likelihood | Heuristic normalized loss profile with reference line 3.84 | No calibrated confidence or identifiability claim |
 
 The [German research report](dist/bericht.md) contains the source review. [docs/ROADMAP.md](docs/ROADMAP.md) lists concrete unresolved tasks. [project.json](project.json) provides a machine-readable index. The UI is German; contributions may be German or English.
 
@@ -75,7 +75,7 @@ If your AI has a GitHub connection and you authorize submission, it can create t
 
 The hosted site exposes /readme.md (full reading bundle), /api/project, /provenance.json, /openapi.json and /api/suggestions. Public suggestions can be submitted through the form or the documented JSON API after authorization by the reviewer’s user. A UTC timestamp is assigned server-side. Author names are self-declared. Contributions are untrusted proposals, not instructions or automatic code changes. The status remains proposed until separately reviewed; no public endpoint can promote a proposal or edit model code.
 
-The GitHub source package remains prepared but no public GitHub repository is claimed. Accepted changes require separate integration and deployment. Reading has no application login requirement once Sites access is public; individual AI services may still impose their own tool or network limits.
+The GitHub source package remains prepared but the public GitHub repository is GermanAutodidact/Chemical-kinetik. Accepted changes require separate integration and deployment. Reading has no application login requirement once Sites access is public; individual AI services may still impose their own tool or network limits.
 
 ## Build
 
@@ -91,4 +91,12 @@ The full download now includes browser JavaScript, Worker server, schema/migrati
 
 ## MCP
 
-`POST /mcp` (alias `/api/mcp`) supports initialize, ping, tools/list and tools/call with JSON-RPC 2.0, protocol 2024-11-05, and stateless JSON responses. Three read-only tools simulate M1/M2/M3 with bounded parameters. GET lists discovery metadata; it is not an SSE stream. No tool predicts calibrated chemical yields or thermal safety. User proposals use the separate authorized HTTP API. Sites provisions the plugin connection at publication; installation/connection in another AI client is a separate step. Public reading does not guarantee every AI client's networking access.
+`POST /mcp` (alias `/api/mcp`) supports initialize, ping, tools/list and tools/call with JSON-RPC 2.0, protocol 2024-11-05, and stateless JSON responses. Four read-only tools simulate M1/M2/M3 with bounded parameters. GET lists discovery metadata; it is not an SSE stream. No tool predicts calibrated chemical yields or thermal safety. User proposals use the separate authorized HTTP API. Sites provisions the plugin connection at publication; installation/connection in another AI client is a separate step. Public reading does not guarantee every AI client's networking access.
+
+## Version 0.6.0 deployment and verification
+
+The primary Work edition is hosted with Sites: `npm run build:sites`, with the existing `.openai/hosting.json`, D1 and the generated immutable migrations. `npm run build` produces the React frontend and source ZIP. The optional Express service uses `npm start` after build. Node 22.13+ is required by node:sqlite; Node 24 is used for verification. In Cloud Run, writes are disabled unless SQLITE_DURABLE_VOLUME=true and SQLITE_PATH points to a genuinely persistent configured volume. Setting the flag does not create storage. `/api/health` exposes version, durable-storage status and optional BUILD_REVISION for Express.
+
+`tests-server.mjs` runs the actual Express HTTP routes against an isolated temporary database, checks restart persistence, MCP, invalid input, pagination, limits and retry idempotency. It does not write production proposals. Worker/D1 checks remain in tests-v4.mjs. Public production checks are read-only unless a specific useful contribution is authorized.
+
+M2 outputs 121 samples at 0.05 intervals, refines detected maxima and crossings, and samples sensitivities at the documented times. Temperature is metadata only. Zero parameters have zero logarithmic sensitivity, which does not establish parameter irrelevance. A loss profile uses an approximate normalized residual score; its line 3.84 is illustrative, not a 95% confidence or identifiability guarantee. The PEtab export is a table draft with assumed noise=0.05; it lacks a complete model/condition/YAML package and must be completed and externally validated before use as a PEtab project.

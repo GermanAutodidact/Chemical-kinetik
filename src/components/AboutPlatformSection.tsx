@@ -64,8 +64,8 @@ export const AboutPlatformSection: React.FC = () => {
         </summary>
         <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-300 font-sans">
           <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
-            <strong className="text-slate-100 block mb-1">Dual-Substrat-Simulation</strong>
-            Umschaltbar zwischen β-Nitrostyrol (C₈H₇NO₂ → PEA) und 1-Phenyl-2-nitropropen (C₉H₉NO₂ → Amphetamin) mit dynamischen 2D-Vektor-Strukturformeln.
+            <strong className="text-slate-100 block mb-1">Beschreibender Stoffvergleich</strong>
+            Beschreibender Vergleich der beiden Moleküle. Die Auswahl verändert keine Modellparameter und liefert keine Anleitung zur Reduktion.
           </div>
           <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
             <strong className="text-slate-100 block mb-1">Modell M3 · Kapazitätsbilanz</strong>
@@ -129,7 +129,7 @@ export const AboutPlatformSection: React.FC = () => {
             </li>
             <li>
               <strong className="text-slate-200">Substratszenarien:</strong> Verifiziert Stabilität über die unterschiedlichen Kinetikregimes
-              von β-Nitrostyrol (direkte Reduktion) und 1-Phenyl-2-nitropropen (erhöhte Nebenwege und Ketoxim-Hydrolyse).
+              von frei gewählten hypothetischen Modellparametern. Diese Tests validieren keine chemischen Reaktionswege.
             </li>
           </ul>
         </div>

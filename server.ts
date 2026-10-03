@@ -22,13 +22,15 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const VERSION = '0.5.0';
+const VERSION = '0.6.0';
+const durableStorage = !process.env.K_SERVICE || process.env.SQLITE_DURABLE_VOLUME === 'true';
 
 // Raw body capture for suggestion validation & byte size limits
 app.use(express.json({ limit: '12kb' }));
 
 // Custom middleware to catch malformed JSON and return standard errors (JSON-RPC for MCP)
 app.use((err: unknown, req: Request, res: Response, next: (err?: unknown) => void) => {
+  if ((err as {type?:string}).type === 'entity.too.large') return res.status(413).json({error:'Payload exceeds limit'});
   if (err instanceof SyntaxError && 'body' in err) {
     if (req.path === '/mcp' || req.path === '/api/mcp') {
       return res.status(200).json({
@@ -43,11 +45,11 @@ app.use((err: unknown, req: Request, res: Response, next: (err?: unknown) => voi
 });
 
 // SQLite database initialization for durable community suggestions
-const dbDir = path.resolve(__dirname, 'data');
+const dbDir = path.dirname(path.resolve(process.env.SQLITE_PATH || path.resolve(__dirname, 'data/suggestions.db')));
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
-const dbPath = path.resolve(dbDir, 'suggestions.db');
+const dbPath = path.resolve(process.env.SQLITE_PATH || path.resolve(dbDir, 'suggestions.db'));
 const database = new DatabaseSync(dbPath);
 
 // Execute schema migration
@@ -58,8 +60,8 @@ for (const stmt of statements) {
   if (clean) {
     try {
       database.exec(clean);
-    } catch {
-      // Index or table may already exist
+    } catch (err) {
+      if (!(err instanceof Error) || !err.message.includes('already exists')) throw err;
     }
   }
 }
@@ -78,7 +80,7 @@ app.use((req, res, next) => {
 
 // API Health
 app.get('/api/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', version: VERSION });
+  res.json({ status: durableStorage ? 'ok' : 'storage_not_durable', version: VERSION, storage_durable: durableStorage, build_revision: process.env.BUILD_REVISION || null });
 });
 
 // Proposal validation logic matching worker/handler.mjs
@@ -130,6 +132,7 @@ app.get('/api/suggestions', (req: Request, res: Response) => {
 
 // /api/suggestions POST (Durable submission with deduplication and rate limiting)
 app.post('/api/suggestions', (req: Request, res: Response) => {
+  if (!durableStorage) return res.status(503).json({error:'Dauerhafter Speicher nicht eingerichtet; Eingabe bitte behalten.'});
   try {
     const p = validateProposal(req.body);
 
@@ -149,7 +152,7 @@ app.post('/api/suggestions', (req: Request, res: Response) => {
     // Rate limiting: max 3 requests per minute per IP fingerprint
     const now = new Date();
     const day = now.toISOString().slice(0, 10);
-    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'shared-unknown';
+    const ip = req.socket.remoteAddress || 'shared-unknown'; // Forwarded headers are untrusted unless a trusted proxy is configured.
     const fingerprint = crypto.createHash('sha256').update(`${day}|${ip}`).digest('hex');
     const since = new Date(now.getTime() - 60000).toISOString();
 
@@ -265,6 +268,9 @@ app.get(['/pea-kinetics-source.zip', '/api/pea-kinetics-source.zip'], (req: Requ
   }
   res.status(404).json({ error: 'Source archive not yet built' });
 });
+
+const readingFiles = ['AGENTS.md','AI_REVIEW.md','CONTRIBUTING.md','docs/MODELS.md','docs/ARCHITECTURE.md','docs/ROADMAP.md'];
+for (const name of readingFiles) app.get('/' + name, (_req, res) => res.type('text/markdown').sendFile(path.resolve(__dirname, name)));
 
 // Full Model Context Protocol (MCP) Tools Definition
 const MCP_TOOLS = [

@@ -255,9 +255,9 @@ export const DataFitSection: React.FC = () => {
           type="button"
           onClick={handleExportPEtab}
           className="secondary-btn text-xs inline-flex items-center gap-1.5"
-          title="Exportiert TSV-Dateien nach dem offenen Standard PEtab (kompatibel mit pyPESTO, PEtab.jl, AMICI)"
+          title="Exportiert TSV-Dateien nach dem offenen Standard PEtab (kein vollständiges validiertes PEtab-Projekt)"
         >
-          <FileSpreadsheet className="w-3.5 h-3.5 text-sky-400" /> PEtab-Standard exportieren (TSV)
+          <FileSpreadsheet className="w-3.5 h-3.5 text-sky-400" /> PEtab-Tabellenentwurf exportieren (TSV)
         </button>
       </div>
 
@@ -353,7 +353,7 @@ export const DataFitSection: React.FC = () => {
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-sky-400" />
               <h3 className="text-sm font-semibold text-slate-100 m-0">
-                Profil-Likelihood-Inspektor (Identifizierbarkeitsanalyse)
+                Verlustprofil-Inspektor (heuristisch)
               </h3>
             </div>
             <span className="text-[11px] text-slate-400 font-mono">
@@ -362,10 +362,7 @@ export const DataFitSection: React.FC = () => {
           </div>
 
           <p className="text-slate-300 mb-3 leading-relaxed">
-            Berechnet den Verlauf von Δχ² bei schrittweiser Fixierung eines Zielparameters unter Re-Optimierung 
-            aller verbleibenden Parameter. Überschreitet das Profil die 95%-Schwelle (Δχ² = 3,84) beidseitig, 
-            ist der Parameter für diese Messdaten <strong>praktisch identifizierbar</strong>. Verbleibt das Profil 
-            flach, liegt eine Nicht-Identifizierbarkeit vor.
+            Zeigt einen normierten Verlustprofil-Score bei Fixierung eines Parameters und erneuter Anpassung der übrigen Raten. Die Linie 3,84 dient nur als heuristische Referenz. Ohne geprüftes Messfehlermodell und geeignete statistische Voraussetzungen entstehen weder ein 95%-Konfidenzintervall noch ein Nachweis praktischer Identifizierbarkeit.
           </p>
 
           <div className="flex items-center gap-3 flex-wrap mb-4">
@@ -404,8 +401,8 @@ export const DataFitSection: React.FC = () => {
                   }`}
                 >
                   {profileResult.identifiable
-                    ? '✓ Praktisch identifizierbar (beidseitig beschränkt)'
-                    : '⚠ Praktisch unvollständig identifizierbar (flaches Profil)'}
+                    ? '✓ Referenz beidseitig überschritten (beidseitig beschränkt)'
+                    : 'Referenz nicht beidseitig überschritten'}
                 </span>
               </div>
 
@@ -439,7 +436,7 @@ export const DataFitSection: React.FC = () => {
                           strokeWidth="1"
                         />
                         <text x="385" y={yThresh + 3} fill="#f59e0b" fontSize="8" fontFamily="monospace">
-                          95% (3.84)
+                          Referenz 3.84
                         </text>
                         <polyline fill="none" stroke="#38bdf8" strokeWidth="2" points={pts} />
                         {profileResult.points.map((p, i) => {

@@ -201,7 +201,7 @@ export interface ProfileLikelihoodResult {
   paramIndex: number;
   paramName: string;
   bestVal: number;
-  thresholdChi2: number; // 3.84 for 95% 1-DOF
+  thresholdChi2: number; // heuristic reference threshold; not a calibrated confidence interval
   identifiable: boolean;
   points: ProfilePoint[];
 }
@@ -217,6 +217,7 @@ export function calculateProfileLikelihood(
   model: 'M1' | 'M0' = 'M1',
   steps = 15
 ): ProfileLikelihoodResult {
+  if (!Number.isInteger(paramIndex) || paramIndex < 0 || paramIndex >= (model === 'M0' ? 2 : 3) || !Number.isInteger(steps) || steps < 3 || !Number.isFinite(bestRates[paramIndex]) || bestRates[paramIndex] <= 0) throw new Error('Invalid profile setting');
   const scale = rows[rows.length - 1].t;
   const cut = Math.max(5, Math.floor(rows.length * 0.8));
   const train = rows.slice(0, cut);
@@ -278,7 +279,7 @@ export function calculateProfileLikelihood(
     const currentRates = xOpt.map((v) => Math.exp(v) / scale);
     const currentLoss = loss(currentRates);
     // Delta chi-squared approximation: N * (loss - minLoss) / minLoss
-    const deltaChi2 = Math.max(0, train.length * ((currentLoss - minLoss) / Math.max(1e-12, minLoss)));
+    const deltaChi2 = Math.max(0, train.reduce((n, row) => n + (row.S === null ? 1 : 2), 0) * ((currentLoss - minLoss) / Math.max(1e-12, minLoss)));
 
     points.push({
       val: fixedRate,
@@ -288,7 +289,7 @@ export function calculateProfileLikelihood(
     });
   }
 
-  // 95% confidence threshold for 1 degree of freedom is 3.84 (Wilks theorem)
+  // Illustrative reference only: the fitted noise model and asymptotic assumptions are not verified.
   const thresholdChi2 = 3.84;
   const leftCross = points.some((p) => p.val < bestRate && p.deltaChi2 >= thresholdChi2);
   const rightCross = points.some((p) => p.val > bestRate && p.deltaChi2 >= thresholdChi2);

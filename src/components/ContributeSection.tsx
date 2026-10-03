@@ -28,10 +28,12 @@ export const ContributeSection: React.FC = () => {
 
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [isLoadingList, setIsLoadingList] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
 
   const fetchSuggestions = async (cursor?: string) => {
     setIsLoadingList(true);
+    setListError(null);
     try {
       const url = cursor ? `/api/suggestions?limit=10&before=${encodeURIComponent(cursor)}` : '/api/suggestions?limit=10';
       const res = await fetch(url);
@@ -44,7 +46,7 @@ export const ContributeSection: React.FC = () => {
       }
       setNextCursor(data.next_cursor || null);
     } catch (err) {
-      console.warn('Could not load suggestions:', err);
+      setListError(`Vorschläge konnten nicht geladen werden: ${err instanceof Error ? err.message : String(err)}. Bitte erneut versuchen.`);
     } finally {
       setIsLoadingList(false);
     }
@@ -53,6 +55,10 @@ export const ContributeSection: React.FC = () => {
   useEffect(() => {
     fetchSuggestions();
   }, []);
+
+  useEffect(() => {
+    setRequestId(crypto.randomUUID());
+  }, [location, proposal, reason, author]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +70,7 @@ export const ContributeSection: React.FC = () => {
       proposal: proposal.trim(),
       reason: reason.trim(),
       author: author.trim() || 'Anonym',
-      version: '0.5.0',
+      version: '0.6.0',
       request_id: requestId,
       submit_authorized: true,
     };
@@ -245,9 +251,10 @@ export const ContributeSection: React.FC = () => {
           </button>
         </div>
 
+        {listError && <p role="alert" className="text-xs text-rose-300 mb-3">{listError}</p>}
         {isLoadingList && suggestions.length === 0 ? (
           <p className="text-xs text-slate-400 font-mono">Vorschläge werden geladen …</p>
-        ) : suggestions.length === 0 ? (
+        ) : suggestions.length === 0 && !listError ? (
           <p className="text-xs text-slate-400 font-mono">Noch keine externen Vorschläge eingetragen.</p>
         ) : (
           <div className="space-y-2.5 mb-3">
