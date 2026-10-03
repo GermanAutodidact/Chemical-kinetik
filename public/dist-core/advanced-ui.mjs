@@ -1,0 +1,23 @@
+import {parameters,defaults,simulate,crossings,envelope,diagnose,refinedPeak} from './advanced.mjs';
+const $=id=>document.getElementById(id),fmt=(x,n=2)=>x.toLocaleString('de-DE',{maximumFractionDigits:n,minimumFractionDigits:n});
+let current={...defaults},lastRows=[],pending;
+for(const [key,meta]of Object.entries(parameters)){const label=document.createElement('label');label.textContent=meta.label;const input=document.createElement('input');input.type='number';input.min=meta.min;input.max=meta.max;input.step='.01';input.value=meta.value;input.id='adv-'+key;input.addEventListener('input',()=>{clearTimeout(pending);pending=setTimeout(refresh,150);});label.append(input);$('advanced-inputs').append(label);}
+function draw(rows,band){const svg=$('advanced-plot'),w=Math.max(260,svg.clientWidth),h=330,L=52,R=15,B=48,T=25,x=t=>L+t/6*(w-L-R),y=v=>h-B-v*(h-B-T),ns='http://www.w3.org/2000/svg';svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.replaceChildren();const add=(name,attrs,text)=>{const e=document.createElementNS(ns,name);for(const [k,v]of Object.entries(attrs))e.setAttribute(k,v);if(text)e.textContent=text;svg.append(e);};
+ for(const v of [0,.25,.5,.75,1]){add('line',{x1:L,x2:w-R,y1:y(v),y2:y(v),stroke:'#2a3b54'});add('text',{x:L-8,y:y(v)+4,'text-anchor':'end',fill:'#b3c1d5','font-size':12},String(v*100));}for(const t of [0,2,4,6])add('text',{x:x(t),y:h-B+22,'text-anchor':'middle',fill:'#b3c1d5','font-size':12},String(t));
+ add('text',{x:L,y:15,fill:'#b3c1d5','font-size':12},'Substratäquivalente (%)');add('text',{x:(w+L-R)/2,y:h-5,fill:'#b3c1d5','font-size':12,'text-anchor':'middle'},'Dimensionslose Modellzeit τ');
+ const path=points=>points.map((p,i)=>`${i?'L':'M'}${x(p.t)},${y(p.v)}`).join(' ');
+ add('path',{d:path([...band.map(s=>({t:s.t,v:s.high})),...band.slice().reverse().map(s=>({t:s.t,v:s.low}))])+' Z',fill:'#79bdff','fill-opacity':'.14'});
+ for(const [key,color,dash]of [['S','#b3c1d5','5 4'],['I','#73d9c5','4 3'],['P','#79bdff',''],['side','#ffc478','']])add('path',{d:path(rows.map(s=>({t:s.t,v:key==='side'?s.B+s.D:s[key]}))),stroke:color,'stroke-width':key==='P'?3:2,fill:'none','stroke-dasharray':dash});
+}
+function refresh(){try{
+ const p={};for(const [key,meta]of Object.entries(parameters)){const el=$('adv-'+key);if(el.value.trim()===''||!Number.isFinite(el.valueAsNumber)||el.valueAsNumber<meta.min||el.valueAsNumber>meta.max)throw new Error(`${meta.label}: Wert zwischen ${meta.min} und ${meta.max} erforderlich. Die letzte gültige Rechnung bleibt sichtbar.`);p[key]=el.valueAsNumber;}
+ current=p;$('advanced-error').textContent='';const rows=simulate(p),band=envelope(p);lastRows=rows;draw(rows,band);const peak=refinedPeak(rows,p),cross=crossings(rows,p);$('adv-result').textContent=`Maximum im Zeitfenster: ${fmt(100*peak.P)} % bei τ = ${fmt(peak.t)}${peak.t===6?' (rechter Rand; kein inneres Maximum belegt)':''}. Ratenkreuzungen: ${cross.length?cross.map(c=>`${fmt(c.t)} (${c.direction})`).join('; '):'keine im Fenster'}.`;
+ const choice=$('observe').value,outputs=choice==='all'?['S','I','P']:['P'],diag=diagnose(p,outputs);
+ $('rank').textContent=`Numerischer Rang ${diag.rank}/6`;$('rank-detail').textContent=`${outputs.join(', ')} bei τ = 0,5; 1; 2; 3; 4; 6. Relative Singularwertschwelle 10⁻⁵. Kein Nachweis globaler oder praktischer Identifizierbarkeit.`;
+ $('similarity').textContent=diag.pair.keys.length?`${diag.pair.keys.join(' / ')}: ${fmt(diag.pair.similarity,4)}`:'Keine auswertbaren Spalten';
+ $('sensrows').replaceChildren(...diag.sensitivity.map(s=>{const tr=document.createElement('tr');for(const text of [parameters[s.key].label,fmt(s.rms,3),s.rms===0?'Lokal null; Nullparameter bleibt unter relativer Variation null':'Lokal am eingestellten Szenario']){const td=document.createElement('td');td.textContent=text;tr.append(td);}return tr;}));
+ $('sv').textContent=diag.singularValues.map(x=>x.toExponential(3)).join(' · ');
+ }catch(e){$('advanced-error').textContent=e.message;}}
+$('observe').addEventListener('change',refresh);$('adv-reset').addEventListener('click',()=>{for(const[k,v]of Object.entries(defaults))$('adv-'+k).value=v;refresh();});
+$('adv-export').addEventListener('click',()=>{if(!lastRows.length)return;const data={status:'hypothetical_not_calibrated',parameters:current,units:'dimensionless',rows:lastRows,diagnostics:diagnose(current,$('observe').value==='all'?['S','I','P']:['P'])};const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='kinetik-szenario-v2.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
+new ResizeObserver(()=>{if(lastRows.length)draw(lastRows,envelope(current));}).observe($('advanced-plot'));refresh();

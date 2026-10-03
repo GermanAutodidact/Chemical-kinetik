@@ -1,0 +1,61 @@
+{
+  "version": "0.4.0",
+  "calibrated": false,
+  "parameters": [
+    {
+      "model": "M1",
+      "names": [
+        "q",
+        "r"
+      ],
+      "status": "assumed",
+      "source": null,
+      "validity": "illustrative model only"
+    },
+    {
+      "model": "M2",
+      "names": [
+        "a0",
+        "lambda",
+        "m",
+        "u",
+        "q",
+        "r"
+      ],
+      "status": "assumed",
+      "source": null,
+      "validity": "illustrative model only"
+    },
+    {
+      "model": "M3",
+      "names": [
+        "capacity",
+        "flux",
+        "eta",
+        "K"
+      ],
+      "status": "assumed",
+      "source": null,
+      "validity": "illustrative model only"
+    }
+  ],
+  "derived": [
+    {
+      "names": [
+        "geometry alpha=0",
+        "geometry alpha=2/3"
+      ],
+      "status": "derived_within_ideal_geometry"
+    },
+    {
+      "names": [
+        "curves",
+        "crossings",
+        "sensitivities"
+      ],
+      "status": "computed_from_model_and_inputs"
+    }
+  ],
+  "data_import": "user_declared_not_independently_verified",
+  "fit": "estimated_from_input_data_not_chemical_validation"
+}

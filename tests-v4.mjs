@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync} from 'node:fs';
+import {singularValues,integrate,bisectEvent} from './dist/numerics.mjs';
+import {fitData,parseData,predict} from './dist/fit.mjs';
+import {api,validateProposal,createWorker} from './worker/handler.mjs';
+const near=(a,b,tol=1e-7)=>assert.ok(Math.abs(a-b)<tol,`${a} != ${b}`);
+near(singularValues([[1,0],[0,1e-12]])[1],1e-12,1e-20);near(singularValues([[1,1],[1,1]])[1],0);near(integrate((t,y)=>[-y[0]],0,[1],3)[0],Math.exp(-3));near(bisectEvent(x=>x*x-2,0,2),Math.sqrt(2));
+const rows=Array.from({length:13},(_,t)=>{const s=predict([.5,.12,.04],t);return {t,S:s.S,P:s.P};}),fit=fitData(rows);assert.ok(fit.trainRMSE<.003&&fit.holdoutRMSE<.005);assert.equal(fit.holdoutCount,3);assert.throws(()=>parseData('t,S,P\n0,1,0'));
+const database=new DatabaseSync(':memory:');const sql=readFileSync('drizzle/0000_burly_black_panther.sql','utf8').split('--> statement-breakpoint');for(const s of sql)database.exec(s);
+const env = { DB: { prepare(sql) {
+ return { bind(...values) {
+  const query = database.prepare(sql);
+  return { async first() { return query.get(...values) || null; }, async all() { return { results: query.all(...values) }; } };
+ } };
+} } };
+const p={location:'M2',proposal:'Test <script>alert(1)</script>',reason:'A reproducible fixture',request_id:'test-request-00000001',submit_authorized:true};
+const request=body=>new Request('https://example.org/api/suggestions',{method:'POST',headers:{'Content-Type':'application/json','CF-Connecting-IP':'192.0.2.1'},body:JSON.stringify(body)});
+let res=await api(request(p),env);assert.equal(res.status,201);const saved=await res.json();assert.ok(saved.created_at.endsWith('Z'));
+res=await api(request(p),env);assert.equal(res.status,200);assert.equal((await res.json()).id,saved.id);
+assert.equal((await api(request({...p,proposal:'different'}),env)).status,409);
+assert.equal((await api(request({...p,submit_authorized:false}),env)).status,400);
+assert.equal((await api(request({...p,request_id:'test-request-00000002'}),env)).status,201);
+assert.equal((await api(request({...p,request_id:'test-request-00000003'}),env)).status,201);
+assert.equal((await api(request({...p,request_id:'test-request-00000004'}),env)).status,429);
+const listing=await(await api(new Request('https://example.org/api/suggestions?limit=2'),env)).json();assert.equal(listing.items.length,2);assert.ok(listing.next_cursor);assert.ok(!('fingerprint' in listing.items[0]));
+const next=await(await api(new Request('https://example.org/api/suggestions?before='+encodeURIComponent(listing.next_cursor)),env)).json();assert.equal(next.items.length,1);
+assert.throws(()=>validateProposal({...p,location:''}));assert.equal((await api(request({...p,proposal:'x'.repeat(13000)}),env)).status,413);
+const worker=createWorker({'/index.html':{body:'working',type:'text/html'}});assert.equal(await(await worker.fetch(new Request('https://example.org/'),env)).text(),'working');
+console.log(JSON.stringify({status:'passed',fitTrainRMSE:fit.trainRMSE,fitHoldoutRMSE:fit.holdoutRMSE,checks:'direct SVD, adaptive integration, root refinement, synthetic fitting, actual SQLite migration, durable insert/read, idempotency, conflict, rate limit, pagination, invalid and large requests'}));

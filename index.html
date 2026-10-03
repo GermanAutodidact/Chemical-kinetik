@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PEA · Kinetik &amp; Evidenz</title>
+    <meta name="description" content="PEA: Forschungsstand, transparente Modellgrenzen und interaktiver kinetischer Modellvergleich." />
+    <meta property="og:title" content="PEA · Kinetik &amp; Evidenz" />
+    <meta property="og:description" content="PEA: Forschungsstand, transparente Modellgrenzen und interaktiver kinetischer Modellvergleich." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2314223b'/%3E%3Cpath d='M5 25Q12 2 18 15T27 20' fill='none' stroke='%236bbcff' stroke-width='3'/%3E%3C/svg%3E" />
+    
+    <!-- AI_AGENT_CONTEXT: Machine-readable specification for LLMs and AI Agents -->
+    <meta name="ai-application-type" content="chemical-kinetics-simulation-and-evidence-analysis" />
+    <meta name="ai-mcp-endpoint" content="/api/mcp" />
+    <meta name="ai-openapi-spec" content="/api/openapi.json" />
+    <meta name="ai-supported-substrates" content="beta-nitrostyrene, 1-phenyl-2-nitropropene" />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "PEA · Kinetik & Evidenz",
+      "applicationCategory": "EducationalApplication, Simulation, Science",
+      "operatingSystem": "All",
+      "description": "Wissenschaftliche Simulationsplattform zur heterogenen Reduktion von beta-Nitrostyrol und 1-Phenyl-2-nitropropen (P2NP) mit Aluminiumamalgam. Beinhaltet Kapazitätsmodell M3, kinetische Kaskade M1, RK4-Mehrschrittmodell M2 mit Sensitivitätsanalyse (Tornado-Chart) und SVD-Identifizierbarkeit, Arrhenius-Temperaturbeschleunigung sowie MCP-Server für KI-Tool-Calls.",
+      "featureList": [
+        "Substrat-Umschaltung: beta-Nitrostyrol (PEA) vs. 1-Phenyl-2-nitropropen (P2NP -> Amphetamin)",
+        "Modell M3: Kapazitätsbilanz und Metallendpunkt (flache Folie vs. schrumpfender 3D-Körper)",
+        "Modell M1: Analytische Kaskade mit Peak- und Ratenkreuzungsberechnung",
+        "Modell M2: Runge-Kutta-4 mit Oberflächenalterung, Transporthemmung, Tornado-Sensitivitätschart und SVD-Identifizierbarkeitsrang",
+        "Arrhenius-Simulator mit Thermal-Runaway-Risikoeinstufung bei 20, 50, 70 und 90 °C",
+        "Model Overlay Comparator (M1 vs. M2)",
+        "MCP-Server (Model Context Protocol) Endpunkt (/api/mcp) und OpenAPI 3.1 (/api/openapi.json)",
+        "Vollständiger ZIP-Forschungspaket-Download mit Python- und TypeScript-Modellen"
+      ]
+    }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

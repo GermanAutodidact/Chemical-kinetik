@@ -1,0 +1,33 @@
+{
+  "name": "pea-kinetics-evidence",
+  "version": "0.5.0",
+  "status": "hypothetical_unvalidated_models",
+  "ui_language": "de",
+  "contribution_languages": [
+    "de",
+    "en"
+  ],
+  "entrypoint": "dist/index.html",
+  "review_entrypoint": "AI_REVIEW.md",
+  "model_reference": "docs/MODELS.md",
+  "architecture": "docs/ARCHITECTURE.md",
+  "evidence": "dist/bericht.md",
+  "tests": [
+    "node tests.mjs",
+    "node tests-advanced.mjs",
+    "node tests-metal.mjs",
+    "node tests-v4.mjs"
+  ],
+  "runtime_dependencies": [
+    "Cloudflare Worker",
+    "D1 for suggestions"
+  ],
+  "calibrated": false,
+  "experimental_data_included": false,
+  "contribution_channels": [
+    "public /api/suggestions",
+    "public web form",
+    "GitHub prepared separately"
+  ],
+  "automatic_deployment_from_github": false
+}

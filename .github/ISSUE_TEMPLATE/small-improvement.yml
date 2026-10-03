@@ -1,0 +1,17 @@
+name: Small improvement / Kleiner Vorschlag
+description: One useful sentence is welcome. Ein begründeter Satz reicht.
+title: "[Suggestion] "
+body:
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Location, improvement and reason / Stelle, Verbesserung und Grund
+      description: One sentence is enough. Mention the file or section and whether you verified it.
+      placeholder: "In file/function X, change Y because Z. Checked using ... / not verified yet."
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Optional evidence / Optionale Belege
+      description: Reproduction, test output, primary-source DOI or proposed replacement sentence.

@@ -1,0 +1,6 @@
+{
+  "name": "PEA · Kinetik & Evidenz",
+  "description": "Reaktionskinetik und Evidenzanalyse zur Reduktion von β-Nitrostyrol zu Phenylethylamin (PEA) mit Aluminiumamalgam, transparenter Modellvergleich und Identifizierbarkeit.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,9 @@
+temperature_C,temperature_K,time,yield_percent,status
+20,293.15,0,0,initial_condition_no_PEA
+20,293.15,t_positive,,not_identifiable_missing_parameters
+50,323.15,0,0,initial_condition_no_PEA
+50,323.15,t_positive,,not_identifiable_missing_parameters
+70,343.15,0,0,initial_condition_no_PEA
+70,343.15,t_positive,,not_identifiable_missing_parameters
+90,363.15,0,0,initial_condition_no_PEA
+90,363.15,t_positive,,not_identifiable_missing_parameters
